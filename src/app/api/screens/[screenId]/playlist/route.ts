@@ -24,13 +24,13 @@ const playlists = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { screenId: string } }
+  { params }: { params: Promise<{ screenId: string }> }
 ) {
   if (!validateApiKey(request)) {
     return unauthorizedResponse()
   }
 
-  const { screenId } = params
+  const { screenId } = await params
   
   const playlist = playlists[screenId as keyof typeof playlists]
   

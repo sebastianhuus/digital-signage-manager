@@ -21,13 +21,13 @@ const screens = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { screenId: string } }
+  { params }: { params: Promise<{ screenId: string }> }
 ) {
   if (!validateApiKey(request)) {
     return unauthorizedResponse()
   }
 
-  const { screenId } = params
+  const { screenId } = await params
   
   const screen = screens[screenId as keyof typeof screens]
   

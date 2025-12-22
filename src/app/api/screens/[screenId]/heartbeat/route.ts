@@ -6,13 +6,13 @@ const heartbeats: Record<string, any> = {}
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { screenId: string } }
+  { params }: { params: Promise<{ screenId: string }> }
 ) {
   if (!validateApiKey(request)) {
     return unauthorizedResponse()
   }
 
-  const { screenId } = params
+  const { screenId } = await params
   
   try {
     const body = await request.json()
@@ -40,13 +40,13 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { screenId: string } }
+  { params }: { params: Promise<{ screenId: string }> }
 ) {
   if (!validateApiKey(request)) {
     return unauthorizedResponse()
   }
 
-  const { screenId } = params
+  const { screenId } = await params
   
   const heartbeat = heartbeats[screenId]
   

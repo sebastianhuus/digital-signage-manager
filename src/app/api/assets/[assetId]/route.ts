@@ -42,13 +42,13 @@ const assets = {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { assetId: string } }
+  { params }: { params: Promise<{ assetId: string }> }
 ) {
   if (!validateApiKey(request)) {
     return unauthorizedResponse()
   }
 
-  const { assetId } = params
+  const { assetId } = await params
   
   const asset = assets[assetId as keyof typeof assets]
   
