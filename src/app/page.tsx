@@ -44,10 +44,6 @@ export default function Home() {
           <h2 className="text-xl font-semibold mb-4">Assets</h2>
           <p className="text-gray-600">Upload and organize media</p>
         </div>
-        <div className="bg-white p-6 rounded shadow">
-          <h2 className="text-xl font-semibold mb-4">Playlists</h2>
-          <p className="text-gray-600">Create content schedules</p>
-        </div>
         <div 
           onClick={() => router.push('/presets')}
           className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
