@@ -152,12 +152,20 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Playlist for {screenId}</h1>
-          <button 
-            onClick={() => router.push('/screens')}
-            className="text-blue-500 hover:underline"
-          >
-            ← Back to Screens
-          </button>
+          <div className="flex gap-4">
+            <button 
+              onClick={() => router.push('/')}
+              className="text-blue-500 hover:underline"
+            >
+              ← Home
+            </button>
+            <button 
+              onClick={() => router.push('/screens')}
+              className="text-blue-500 hover:underline"
+            >
+              ← Back to Screens
+            </button>
+          </div>
         </div>
         <div className="flex gap-2">
           <button 

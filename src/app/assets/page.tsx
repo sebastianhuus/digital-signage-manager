@@ -106,7 +106,7 @@ export default function AssetsPage() {
             onClick={() => router.push('/')}
             className="text-blue-500 hover:underline"
           >
-            ← Back to Dashboard
+            ← Home
           </button>
         </div>
         <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
