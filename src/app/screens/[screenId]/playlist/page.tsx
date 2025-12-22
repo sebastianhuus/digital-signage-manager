@@ -37,6 +37,8 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
   const [duration, setDuration] = useState(10)
   const [playlistMode, setPlaylistMode] = useState<'individual' | 'shared' | 'split'>('individual')
   const [showAssetDropdown, setShowAssetDropdown] = useState(false)
+  const [editingDuration, setEditingDuration] = useState<number | null>(null)
+  const [editDurationValue, setEditDurationValue] = useState(0)
   const [screenId, setScreenId] = useState<string>('')
 
   useEffect(() => {
@@ -64,11 +66,18 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
           setShowAssetDropdown(false)
         }
       }
+      
+      if (editingDuration !== null) {
+        const target = event.target as Element
+        if (!target.closest('.duration-editor')) {
+          cancelEditDuration()
+        }
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showAssetDropdown])
+  }, [showAssetDropdown, editingDuration])
 
   const fetchPlaylist = async () => {
     if (!screenId) return
@@ -145,6 +154,37 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
       }
     } catch (error) {
       console.error('Failed to remove from playlist:', error)
+    }
+  }
+
+  const startEditDuration = (item: PlaylistItem) => {
+    setEditingDuration(item.id)
+    setEditDurationValue(item.duration)
+  }
+
+  const cancelEditDuration = () => {
+    setEditingDuration(null)
+    setEditDurationValue(0)
+  }
+
+  const saveDuration = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/screens/${screenId}/playlist/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: editDurationValue })
+      })
+
+      if (response.ok) {
+        setEditingDuration(null)
+        setEditDurationValue(0)
+        fetchPlaylist()
+      } else {
+        const error = await response.json()
+        alert(error.error)
+      }
+    } catch (error) {
+      console.error('Failed to update duration:', error)
     }
   }
 
@@ -385,8 +425,48 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
                   </div>
                   <div>
                     <div className="font-medium">{item.filename}</div>
-                    <div className="text-sm text-gray-500">
-                      {item.type} • {item.duration}s
+                    <div className="text-sm text-gray-500 flex items-center gap-2">
+                      <span>{item.type}</span>
+                      <span>•</span>
+                      {editingDuration === item.id ? (
+                        <div className="flex items-center gap-1 duration-editor">
+                          <input
+                            type="number"
+                            value={editDurationValue}
+                            onChange={(e) => setEditDurationValue(parseInt(e.target.value) || 0)}
+                            className="w-16 px-1 py-0.5 border rounded text-xs"
+                            min="1"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveDuration(item.id)
+                              if (e.key === 'Escape') cancelEditDuration()
+                            }}
+                            autoFocus
+                          />
+                          <span className="text-xs">s</span>
+                          <button
+                            onClick={() => saveDuration(item.id)}
+                            className="text-green-600 hover:text-green-800 text-xs"
+                            title="Save"
+                          >
+                            ✓
+                          </button>
+                          <button
+                            onClick={cancelEditDuration}
+                            className="text-red-600 hover:text-red-800 text-xs"
+                            title="Cancel"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <span 
+                          className="cursor-pointer hover:bg-gray-100 px-1 rounded"
+                          onClick={() => startEditDuration(item)}
+                          title="Click to edit duration"
+                        >
+                          {item.duration}s
+                        </span>
+                      )}
                       {item.split_config && <span className="ml-2 bg-orange-100 px-2 py-1 rounded text-xs">SPLIT</span>}
                     </div>
                   </div>
