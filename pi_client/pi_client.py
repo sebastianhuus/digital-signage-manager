@@ -15,12 +15,17 @@ from pathlib import Path
 # Load environment variables from .env file if it exists
 def load_env_file():
     env_file = Path(__file__).parent / '.env'
+    print(f"Looking for .env file at: {env_file}")
     if env_file.exists():
+        print("Found .env file, loading...")
         with open(env_file) as f:
             for line in f:
                 if line.strip() and not line.startswith('#'):
                     key, value = line.strip().split('=', 1)
                     os.environ[key] = value
+                    print(f"Loaded: {key}={value}")
+    else:
+        print("No .env file found, using defaults")
 
 load_env_file()
 
@@ -31,6 +36,11 @@ SCREEN_ID = os.getenv("SIGNAGE_SCREEN_ID", "tv-1")
 CACHE_DIR = Path.home() / "signage_cache"
 POLL_INTERVAL = int(os.getenv("SIGNAGE_POLL_INTERVAL", "30"))  # seconds
 HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_HEARTBEAT_INTERVAL", "60"))  # seconds
+
+print(f"Configuration loaded:")
+print(f"  API_BASE_URL: {API_BASE_URL}")
+print(f"  SCREEN_ID: {SCREEN_ID}")
+print(f"  API_KEY: {API_KEY[:10]}...")  # Only show first 10 chars
 
 class SignageClient:
     def __init__(self):
@@ -49,19 +59,36 @@ class SignageClient:
         """Make authenticated API request"""
         headers = {"x-api-key": API_KEY}
         try:
-            response = requests.get(f"{API_BASE_URL}/api/{endpoint}", headers=headers, timeout=10)
+            # Remove leading slash from endpoint to avoid double slashes
+            endpoint = endpoint.lstrip('/')
+            url = f"{API_BASE_URL}/api/{endpoint}"
+            response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
+            
+            # Debug: print response content
+            print(f"API Response for {endpoint}: {response.text[:200]}...")
+            
+            if not response.text.strip():
+                print(f"Empty response from {endpoint}")
+                return None
+                
             return response.json()
         except requests.RequestException as e:
             print(f"API request failed: {e}")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error for {endpoint}: {e}")
+            print(f"Response content: {response.text}")
             return None
             
     def post_api_request(self, endpoint, data):
         """Make authenticated POST API request"""
         headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
         try:
-            response = requests.post(f"{API_BASE_URL}/api/{endpoint}", 
-                                   headers=headers, json=data, timeout=10)
+            # Remove leading slash from endpoint to avoid double slashes
+            endpoint = endpoint.lstrip('/')
+            url = f"{API_BASE_URL}/api/{endpoint}"
+            response = requests.post(url, headers=headers, json=data, timeout=10)
             response.raise_for_status()
             return response.json()
         except requests.RequestException as e:
