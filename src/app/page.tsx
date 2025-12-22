@@ -48,6 +48,13 @@ export default function Home() {
           <h2 className="text-xl font-semibold mb-4">Playlists</h2>
           <p className="text-gray-600">Create content schedules</p>
         </div>
+        <div 
+          onClick={() => router.push('/presets')}
+          className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-4">Presets</h2>
+          <p className="text-gray-600">Reusable playlist templates</p>
+        </div>
       </div>
     </div>
   )
