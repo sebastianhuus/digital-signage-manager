@@ -30,7 +30,10 @@ export default function Home() {
         </button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded shadow">
+        <div 
+          onClick={() => router.push('/screens')}
+          className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
+        >
           <h2 className="text-xl font-semibold mb-4">Screens</h2>
           <p className="text-gray-600">Manage your digital displays</p>
         </div>
