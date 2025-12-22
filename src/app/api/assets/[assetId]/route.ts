@@ -23,11 +23,18 @@ export async function GET(
     }
     
     const asset = result.rows[0]
+    
+    // If we have a Vercel Blob URL, redirect to it
+    if (asset.url && asset.url.startsWith('https://')) {
+      return NextResponse.redirect(asset.url)
+    }
+    
+    // Otherwise return metadata
     return NextResponse.json({
       assetId: asset.asset_id,
       filename: asset.filename,
       type: asset.type,
-      url: `/api/assets/${asset.asset_id}/download`,
+      url: asset.url || `/api/assets/${asset.asset_id}/download`,
       size: asset.size
     })
   } catch (error) {

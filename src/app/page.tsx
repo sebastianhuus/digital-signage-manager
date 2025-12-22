@@ -37,7 +37,10 @@ export default function Home() {
           <h2 className="text-xl font-semibold mb-4">Screens</h2>
           <p className="text-gray-600">Manage your digital displays</p>
         </div>
-        <div className="bg-white p-6 rounded shadow">
+        <div 
+          onClick={() => router.push('/assets')}
+          className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
+        >
           <h2 className="text-xl font-semibold mb-4">Assets</h2>
           <p className="text-gray-600">Upload and organize media</p>
         </div>
