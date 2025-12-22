@@ -5,6 +5,25 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Zoom from 'react-medium-image-zoom'
 import 'react-medium-image-zoom/dist/styles.css'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import {
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface PlaylistItem {
   id: number
@@ -25,6 +44,107 @@ interface Asset {
   type: string
   size: number
   url: string
+}
+
+function SortablePlaylistItem({ item, index, onEdit, onRemove, editingDuration, editDurationValue, setEditDurationValue, saveDuration, cancelEditDuration }: any) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="p-4 flex justify-between items-center bg-white">
+      <div className="flex items-center space-x-4">
+        <div 
+          {...attributes} 
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          title="Drag to reorder"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+          </svg>
+        </div>
+        <div className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
+          #{index + 1}
+        </div>
+        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+          {item.type === 'image' && item.url ? (
+            <Zoom>
+              <img 
+                src={item.url} 
+                alt={item.filename}
+                className="w-full h-full object-cover cursor-zoom-in"
+              />
+            </Zoom>
+          ) : (
+            <div className="text-gray-400 text-lg">🎬</div>
+          )}
+        </div>
+        <div>
+          <div className="font-medium">{item.filename}</div>
+          <div className="text-sm text-gray-500 flex items-center gap-2">
+            <span>{item.type}</span>
+            <span>•</span>
+            {editingDuration === item.id ? (
+              <div className="flex items-center gap-1 duration-editor">
+                <input
+                  type="number"
+                  value={editDurationValue}
+                  onChange={(e) => setEditDurationValue(parseInt(e.target.value) || 0)}
+                  className="w-16 px-1 py-0.5 border rounded text-xs"
+                  min="1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveDuration(item.id)
+                    if (e.key === 'Escape') cancelEditDuration()
+                  }}
+                  autoFocus
+                />
+                <span className="text-xs">s</span>
+                <button
+                  onClick={() => saveDuration(item.id)}
+                  className="text-green-600 hover:text-green-800 text-xs"
+                  title="Save"
+                >
+                  ✓
+                </button>
+                <button
+                  onClick={cancelEditDuration}
+                  className="text-red-600 hover:text-red-800 text-xs"
+                  title="Cancel"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <span 
+                className="cursor-pointer hover:bg-gray-100 px-1 rounded"
+                onClick={() => onEdit(item)}
+                title="Click to edit duration"
+              >
+                {item.duration}s
+              </span>
+            )}
+            {item.split_config && <span className="ml-2 bg-orange-100 px-2 py-1 rounded text-xs">SPLIT</span>}
+          </div>
+        </div>
+      </div>
+      <button 
+        onClick={() => onRemove(item.id)}
+        className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+      >
+        Remove
+      </button>
+    </div>
+  )
 }
 
 export default function PlaylistPage({ params }: { params: Promise<{ screenId: string }> }) {
@@ -185,6 +305,41 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
       }
     } catch (error) {
       console.error('Failed to update duration:', error)
+    }
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (active.id !== over?.id) {
+      const oldIndex = playlist.findIndex(item => item.id === active.id)
+      const newIndex = playlist.findIndex(item => item.id === over?.id)
+      
+      const newPlaylist = arrayMove(playlist, oldIndex, newIndex)
+      setPlaylist(newPlaylist)
+
+      // Update positions in database
+      try {
+        await Promise.all(
+          newPlaylist.map((item, index) =>
+            fetch(`/api/admin/screens/${screenId}/playlist/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ position: index + 1 })
+            })
+          )
+        )
+      } catch (error) {
+        console.error('Failed to update playlist order:', error)
+        fetchPlaylist() // Revert on error
+      }
     }
   }
 
@@ -403,83 +558,33 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
             No content in playlist. Add some content to get started.
           </div>
         ) : (
-          <div className="divide-y">
-            {playlist.map((item, index) => (
-              <div key={item.id} className="p-4 flex justify-between items-center">
-                <div className="flex items-center space-x-4">
-                  <div className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
-                    #{index + 1}
-                  </div>
-                  <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
-                    {item.type === 'image' && item.url ? (
-                      <Zoom>
-                        <img 
-                          src={item.url} 
-                          alt={item.filename}
-                          className="w-full h-full object-cover cursor-zoom-in"
-                        />
-                      </Zoom>
-                    ) : (
-                      <div className="text-gray-400 text-lg">🎬</div>
-                    )}
-                  </div>
-                  <div>
-                    <div className="font-medium">{item.filename}</div>
-                    <div className="text-sm text-gray-500 flex items-center gap-2">
-                      <span>{item.type}</span>
-                      <span>•</span>
-                      {editingDuration === item.id ? (
-                        <div className="flex items-center gap-1 duration-editor">
-                          <input
-                            type="number"
-                            value={editDurationValue}
-                            onChange={(e) => setEditDurationValue(parseInt(e.target.value) || 0)}
-                            className="w-16 px-1 py-0.5 border rounded text-xs"
-                            min="1"
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') saveDuration(item.id)
-                              if (e.key === 'Escape') cancelEditDuration()
-                            }}
-                            autoFocus
-                          />
-                          <span className="text-xs">s</span>
-                          <button
-                            onClick={() => saveDuration(item.id)}
-                            className="text-green-600 hover:text-green-800 text-xs"
-                            title="Save"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={cancelEditDuration}
-                            className="text-red-600 hover:text-red-800 text-xs"
-                            title="Cancel"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <span 
-                          className="cursor-pointer hover:bg-gray-100 px-1 rounded"
-                          onClick={() => startEditDuration(item)}
-                          title="Click to edit duration"
-                        >
-                          {item.duration}s
-                        </span>
-                      )}
-                      {item.split_config && <span className="ml-2 bg-orange-100 px-2 py-1 rounded text-xs">SPLIT</span>}
-                    </div>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => removeFromPlaylist(item.id)}
-                  className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-                >
-                  Remove
-                </button>
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext 
+              items={playlist.map(item => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y">
+                {playlist.map((item, index) => (
+                  <SortablePlaylistItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onEdit={startEditDuration}
+                    onRemove={removeFromPlaylist}
+                    editingDuration={editingDuration}
+                    editDurationValue={editDurationValue}
+                    setEditDurationValue={setEditDurationValue}
+                    saveDuration={saveDuration}
+                    cancelEditDuration={cancelEditDuration}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     </div>
