@@ -120,7 +120,7 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
       const screens = await response.json()
       
       for (const screen of screens) {
-        if (screen.screen_id !== params.screenId) {
+        if (screen.screen_id !== screenId) {
           // Clear existing playlist
           await fetch(`/api/admin/screens/${screen.screen_id}/playlist/clear`, { method: 'POST' })
           
