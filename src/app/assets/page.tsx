@@ -154,7 +154,7 @@ export default function AssetsPage() {
         </label>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
         {assets.map((asset) => (
           <div key={asset.id} className="bg-white rounded shadow overflow-hidden">
             <div className="aspect-video bg-gray-100 flex items-center justify-center">
@@ -162,20 +162,20 @@ export default function AssetsPage() {
                 <img 
                   src={asset.url} 
                   alt={asset.filename}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
-                <div className="text-gray-400 text-4xl">🎬</div>
+                <div className="text-gray-400 text-2xl">🎬</div>
               )}
             </div>
-            <div className="p-4">
+            <div className="p-3">
               {editingAsset === asset.asset_id ? (
                 <div className="space-y-2">
                   <input
                     type="text"
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    className="w-full p-2 border rounded text-sm"
+                    className="w-full p-1 border rounded text-xs"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') saveEdit(asset.asset_id)
                       if (e.key === 'Escape') cancelEdit()
@@ -199,7 +199,7 @@ export default function AssetsPage() {
                 </div>
               ) : (
                 <div 
-                  className="font-medium truncate cursor-pointer hover:bg-gray-50 p-1 rounded flex items-center gap-2 group" 
+                  className="font-medium truncate cursor-pointer hover:bg-gray-50 p-1 rounded flex items-center gap-1 group text-sm" 
                   title="Click to edit name"
                   onClick={() => startEdit(asset)}
                 >
@@ -214,15 +214,15 @@ export default function AssetsPage() {
                   </svg>
                 </div>
               )}
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 {asset.type} • {formatSize(asset.size)}
               </div>
-              <div className="text-xs text-gray-400 mt-1 font-mono">
+              <div className="text-xs text-gray-400 mt-1 font-mono truncate">
                 {asset.asset_id}
               </div>
               <button
                 onClick={() => deleteAsset(asset.asset_id)}
-                className="mt-3 w-full bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                className="mt-2 w-full bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
               >
                 Delete
               </button>
