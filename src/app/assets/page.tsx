@@ -3,6 +3,8 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Zoom from 'react-medium-image-zoom'
+import 'react-medium-image-zoom/dist/styles.css'
 
 interface Asset {
   id: number
@@ -159,11 +161,13 @@ export default function AssetsPage() {
           <div key={asset.id} className="bg-white rounded shadow overflow-hidden">
             <div className="aspect-video bg-gray-100 flex items-center justify-center">
               {asset.type === 'image' ? (
-                <img 
-                  src={asset.url} 
-                  alt={asset.filename}
-                  className="w-full h-full object-contain"
-                />
+                <Zoom>
+                  <img 
+                    src={asset.url} 
+                    alt={asset.filename}
+                    className="w-full h-full object-contain cursor-zoom-in"
+                  />
+                </Zoom>
               ) : (
                 <div className="text-gray-400 text-2xl">🎬</div>
               )}
