@@ -18,8 +18,10 @@ interface PlaylistItem {
 interface Asset {
   asset_id: string
   filename: string
+  display_name?: string
   type: string
   size: number
+  url: string
 }
 
 export default function PlaylistPage({ params }: { params: Promise<{ screenId: string }> }) {

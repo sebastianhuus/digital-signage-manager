@@ -20,6 +20,8 @@ export default function AssetsPage() {
   const router = useRouter()
   const [assets, setAssets] = useState<Asset[]>([])
   const [uploading, setUploading] = useState(false)
+  const [editingAsset, setEditingAsset] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -88,6 +90,37 @@ export default function AssetsPage() {
     }
   }
 
+  const startEdit = (asset: Asset) => {
+    setEditingAsset(asset.asset_id)
+    setEditName(asset.display_name || asset.filename)
+  }
+
+  const cancelEdit = () => {
+    setEditingAsset(null)
+    setEditName('')
+  }
+
+  const saveEdit = async (assetId: string) => {
+    try {
+      const response = await fetch(`/api/admin/assets?assetId=${assetId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ displayName: editName })
+      })
+
+      if (response.ok) {
+        setEditingAsset(null)
+        setEditName('')
+        fetchAssets()
+      } else {
+        const error = await response.json()
+        alert(error.error)
+      }
+    } catch (error) {
+      console.error('Failed to update asset:', error)
+    }
+  }
+
   const formatSize = (bytes: number) => {
     if (bytes < 1024) return bytes + ' B'
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
@@ -136,9 +169,51 @@ export default function AssetsPage() {
               )}
             </div>
             <div className="p-4">
-              <div className="font-medium truncate" title={asset.display_name || asset.filename}>
-                {asset.display_name || asset.filename}
-              </div>
+              {editingAsset === asset.asset_id ? (
+                <div className="space-y-2">
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full p-2 border rounded text-sm"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEdit(asset.asset_id)
+                      if (e.key === 'Escape') cancelEdit()
+                    }}
+                    autoFocus
+                  />
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => saveEdit(asset.asset_id)}
+                      className="flex-1 bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="flex-1 bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  className="font-medium truncate cursor-pointer hover:bg-gray-50 p-1 rounded flex items-center gap-2 group" 
+                  title="Click to edit name"
+                  onClick={() => startEdit(asset)}
+                >
+                  <span className="flex-1 truncate">{asset.display_name || asset.filename}</span>
+                  <svg 
+                    className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </div>
+              )}
               <div className="text-sm text-gray-500 mt-1">
                 {asset.type} • {formatSize(asset.size)}
               </div>

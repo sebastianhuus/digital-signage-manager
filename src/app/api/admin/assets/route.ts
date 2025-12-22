@@ -63,6 +63,33 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PUT(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const assetId = searchParams.get('assetId')
+    const body = await request.json()
+    
+    if (!assetId) {
+      return NextResponse.json({ error: 'Asset ID required' }, { status: 400 })
+    }
+    
+    const result = await pool.query(`
+      UPDATE assets 
+      SET display_name = $1 
+      WHERE asset_id = $2 
+      RETURNING *
+    `, [body.displayName, assetId])
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+    }
+    
+    return NextResponse.json(result.rows[0])
+  } catch (error) {
+    console.error('Update error:', error)
+    return NextResponse.json({ error: 'Update failed' }, { status: 500 })
+  }
+}
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
