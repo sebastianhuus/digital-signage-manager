@@ -22,7 +22,7 @@ interface Asset {
   size: number
 }
 
-export default function PlaylistPage({ params }: { params: { screenId: string } }) {
+export default function PlaylistPage({ params }: { params: Promise<{ screenId: string }> }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [playlist, setPlaylist] = useState<PlaylistItem[]>([])
@@ -31,6 +31,11 @@ export default function PlaylistPage({ params }: { params: { screenId: string } 
   const [selectedAsset, setSelectedAsset] = useState('')
   const [duration, setDuration] = useState(10)
   const [playlistMode, setPlaylistMode] = useState<'individual' | 'shared' | 'split'>('individual')
+  const [screenId, setScreenId] = useState<string>('')
+
+  useEffect(() => {
+    params.then(p => setScreenId(p.screenId))
+  }, [params])
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -39,15 +44,16 @@ export default function PlaylistPage({ params }: { params: { screenId: string } 
   }, [status, router])
 
   useEffect(() => {
-    if (session) {
+    if (session && screenId) {
       fetchPlaylist()
       fetchAssets()
     }
-  }, [session])
+  }, [session, screenId])
 
   const fetchPlaylist = async () => {
+    if (!screenId) return
     try {
-      const response = await fetch(`/api/admin/screens/${params.screenId}/playlist`)
+      const response = await fetch(`/api/admin/screens/${screenId}/playlist`)
       const data = await response.json()
       setPlaylist(data)
     } catch (error) {
@@ -67,9 +73,10 @@ export default function PlaylistPage({ params }: { params: { screenId: string } 
 
   const addToPlaylist = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!screenId) return
     
     try {
-      const response = await fetch(`/api/admin/screens/${params.screenId}/playlist`, {
+      const response = await fetch(`/api/admin/screens/${screenId}/playlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -91,8 +98,9 @@ export default function PlaylistPage({ params }: { params: { screenId: string } 
   }
 
   const removeFromPlaylist = async (id: number) => {
+    if (!screenId) return
     try {
-      const response = await fetch(`/api/admin/screens/${params.screenId}/playlist?id=${id}`, {
+      const response = await fetch(`/api/admin/screens/${screenId}/playlist?id=${id}`, {
         method: 'DELETE'
       })
       
@@ -143,7 +151,7 @@ export default function PlaylistPage({ params }: { params: { screenId: string } 
     <div className="min-h-screen p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Playlist for {params.screenId}</h1>
+          <h1 className="text-3xl font-bold">Playlist for {screenId}</h1>
           <button 
             onClick={() => router.push('/screens')}
             className="text-blue-500 hover:underline"

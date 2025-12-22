@@ -39,15 +39,14 @@ export async function POST(
     const nextPosition = posResult.rows[0].next_pos
     
     const result = await pool.query(`
-      INSERT INTO playlists (screen_id, asset_id, duration, position, split_config)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO playlists (screen_id, asset_id, duration, position)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `, [
       screenId,
       body.assetId,
       body.duration || 10,
-      nextPosition,
-      body.splitConfig ? JSON.stringify(body.splitConfig) : null
+      nextPosition
     ])
     
     return NextResponse.json(result.rows[0])
