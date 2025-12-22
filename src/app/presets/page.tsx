@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import PageContainer from "@/components/PageContainer"
 
 interface PresetPlaylist {
   id: number
@@ -132,7 +133,7 @@ export default function PresetsPage() {
   if (!session) return null
 
   return (
-    <div className="min-h-screen p-8">
+    <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Playlist Presets</h1>
@@ -296,6 +297,6 @@ export default function PresetsPage() {
           </div>
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

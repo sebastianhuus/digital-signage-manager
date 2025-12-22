@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Zoom from 'react-medium-image-zoom'
 import 'react-medium-image-zoom/dist/styles.css'
+import PageContainer from "@/components/PageContainer"
 import {
   DndContext,
   closestCenter,
@@ -338,7 +339,7 @@ export default function PresetEditPage({ params }: { params: Promise<{ presetId:
   if (!session) return null
 
   return (
-    <div className="min-h-screen p-8">
+    <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Edit Preset: {preset?.name}</h1>
@@ -525,6 +526,6 @@ export default function PresetEditPage({ params }: { params: Promise<{ presetId:
           </DndContext>
         )}
       </div>
-    </div>
+    </PageContainer>
   )
 }

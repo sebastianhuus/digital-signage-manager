@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import Zoom from 'react-medium-image-zoom'
 import 'react-medium-image-zoom/dist/styles.css'
+import PageContainer from "@/components/PageContainer"
 
 interface Asset {
   id: number
@@ -133,7 +134,7 @@ export default function AssetsPage() {
   if (!session) return null
 
   return (
-    <div className="min-h-screen p-8">
+    <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Assets Library</h1>
@@ -240,6 +241,6 @@ export default function AssetsPage() {
           No assets uploaded yet. Click "Upload File" to add images or videos.
         </div>
       )}
-    </div>
+    </PageContainer>
   )
 }

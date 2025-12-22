@@ -3,6 +3,7 @@
 import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
+import PageContainer from "@/components/PageContainer"
 
 // Get version at build time
 const APP_VERSION = process.env.npm_package_version || '0.1.0'
@@ -33,7 +34,7 @@ export default function Home() {
   if (!session) return null
 
   return (
-    <div className="min-h-screen p-8">
+    <PageContainer>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Signage Manager</h1>
         <button 
@@ -70,6 +71,6 @@ export default function Home() {
       <footer className="mt-16 text-center text-gray-400 text-sm">
         Signage Manager v{getVersionWithBuild()}
       </footer>
-    </div>
+    </PageContainer>
   )
 }
