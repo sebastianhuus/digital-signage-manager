@@ -6,7 +6,8 @@ import { useEffect } from "react"
 import PageContainer from "@/components/PageContainer"
 
 // Get version at build time
-const APP_VERSION = process.env.npm_package_version || '0.1.0'
+// Use environment variable set at build time, with fallback
+const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || '0.1.0'
 
 function getVersionWithBuild(): string {
   // Add build info in development
