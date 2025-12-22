@@ -1,26 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateApiKey, unauthorizedResponse } from '@/lib/auth'
-
-// Mock playlists - replace with database later
-const playlists = {
-  'tv-1': {
-    screenId: 'tv-1',
-    lastUpdated: '2025-12-22T10:00:00Z',
-    items: [
-      { assetId: 'welcome-img', duration: 10, type: 'image' },
-      { assetId: 'promo-video', duration: 30, type: 'video' },
-      { assetId: 'news-feed', duration: 15, type: 'image' }
-    ]
-  },
-  'tv-2': {
-    screenId: 'tv-2',
-    lastUpdated: '2025-12-22T10:00:00Z', 
-    items: [
-      { assetId: 'schedule-img', duration: 20, type: 'image' },
-      { assetId: 'announcement', duration: 10, type: 'image' }
-    ]
-  }
-}
+import { pool } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
@@ -32,11 +12,30 @@ export async function GET(
 
   const { screenId } = await params
   
-  const playlist = playlists[screenId as keyof typeof playlists]
-  
-  if (!playlist) {
-    return NextResponse.json({ error: 'Playlist not found' }, { status: 404 })
+  try {
+    const result = await pool.query(`
+      SELECT p.asset_id, p.duration, a.type, p.position
+      FROM playlists p
+      JOIN assets a ON p.asset_id = a.asset_id
+      WHERE p.screen_id = $1
+      ORDER BY p.position
+    `, [screenId])
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Playlist not found' }, { status: 404 })
+    }
+    
+    return NextResponse.json({
+      screenId,
+      lastUpdated: new Date().toISOString(),
+      items: result.rows.map(row => ({
+        assetId: row.asset_id,
+        duration: row.duration,
+        type: row.type
+      }))
+    })
+  } catch (error) {
+    console.error('Database error:', error)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
-  
-  return NextResponse.json(playlist)
 }

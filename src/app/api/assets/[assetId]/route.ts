@@ -1,44 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { validateApiKey, unauthorizedResponse } from '@/lib/auth'
-
-// Mock assets - replace with Vercel Blob later
-const assets = {
-  'welcome-img': {
-    assetId: 'welcome-img',
-    filename: 'welcome.jpg',
-    type: 'image',
-    url: '/api/assets/welcome-img/download',
-    size: 1024000
-  },
-  'promo-video': {
-    assetId: 'promo-video', 
-    filename: 'promo.mp4',
-    type: 'video',
-    url: '/api/assets/promo-video/download',
-    size: 5120000
-  },
-  'news-feed': {
-    assetId: 'news-feed',
-    filename: 'news.png', 
-    type: 'image',
-    url: '/api/assets/news-feed/download',
-    size: 512000
-  },
-  'schedule-img': {
-    assetId: 'schedule-img',
-    filename: 'schedule.jpg',
-    type: 'image', 
-    url: '/api/assets/schedule-img/download',
-    size: 768000
-  },
-  'announcement': {
-    assetId: 'announcement',
-    filename: 'announcement.png',
-    type: 'image',
-    url: '/api/assets/announcement/download', 
-    size: 256000
-  }
-}
+import { pool } from '@/lib/db'
 
 export async function GET(
   request: NextRequest,
@@ -50,11 +12,26 @@ export async function GET(
 
   const { assetId } = await params
   
-  const asset = assets[assetId as keyof typeof assets]
-  
-  if (!asset) {
-    return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+  try {
+    const result = await pool.query(
+      'SELECT * FROM assets WHERE asset_id = $1',
+      [assetId]
+    )
+    
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Asset not found' }, { status: 404 })
+    }
+    
+    const asset = result.rows[0]
+    return NextResponse.json({
+      assetId: asset.asset_id,
+      filename: asset.filename,
+      type: asset.type,
+      url: `/api/assets/${asset.asset_id}/download`,
+      size: asset.size
+    })
+  } catch (error) {
+    console.error('Database error:', error)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
-  
-  return NextResponse.json(asset)
 }
