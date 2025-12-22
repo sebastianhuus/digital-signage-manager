@@ -4,6 +4,20 @@ import { useSession, signOut } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 
+// Get version at build time
+const APP_VERSION = process.env.npm_package_version || '0.1.0'
+
+function getVersionWithBuild(): string {
+  // Add build info in development
+  if (process.env.NODE_ENV === 'development') {
+    const now = new Date()
+    const buildTime = now.toISOString().slice(0, 16).replace('T', ' ')
+    return `${APP_VERSION}-dev (${buildTime})`
+  }
+  
+  return APP_VERSION
+}
+
 export default function Home() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -52,6 +66,10 @@ export default function Home() {
           <p className="text-gray-600">Reusable playlist templates</p>
         </div>
       </div>
+      
+      <footer className="mt-16 text-center text-gray-400 text-sm">
+        Signage Manager v{getVersionWithBuild()}
+      </footer>
     </div>
   )
 }
