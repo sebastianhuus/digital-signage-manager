@@ -31,6 +31,7 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
   const [selectedAsset, setSelectedAsset] = useState('')
   const [duration, setDuration] = useState(10)
   const [playlistMode, setPlaylistMode] = useState<'individual' | 'shared' | 'split'>('individual')
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false)
   const [screenId, setScreenId] = useState<string>('')
 
   useEffect(() => {
@@ -49,6 +50,20 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
       fetchAssets()
     }
   }, [session, screenId])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showAssetDropdown) {
+        const target = event.target as Element
+        if (!target.closest('.asset-dropdown')) {
+          setShowAssetDropdown(false)
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showAssetDropdown])
 
   const fetchPlaylist = async () => {
     if (!screenId) return
@@ -202,19 +217,82 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
             
             <div>
               <label className="block mb-2">Select Asset:</label>
-              <select
-                value={selectedAsset}
-                onChange={(e) => setSelectedAsset(e.target.value)}
-                className="w-full p-2 border rounded"
-                required
-              >
-                <option value="">Choose an asset...</option>
-                {assets.map((asset) => (
-                  <option key={asset.asset_id} value={asset.asset_id}>
-                    {asset.filename} ({asset.type})
-                  </option>
-                ))}
-              </select>
+              <div className="relative asset-dropdown">
+                <button
+                  type="button"
+                  onClick={() => setShowAssetDropdown(!showAssetDropdown)}
+                  className="w-full p-2 border rounded bg-white text-left flex items-center justify-between"
+                >
+                  {selectedAsset ? (
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const asset = assets.find(a => a.asset_id === selectedAsset)
+                        return asset ? (
+                          <>
+                            <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {asset.type === 'image' ? (
+                                <img 
+                                  src={asset.url} 
+                                  alt={asset.display_name || asset.filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="text-gray-400 text-xs">🎬</div>
+                              )}
+                            </div>
+                            <span className="truncate">{asset.display_name || asset.filename}</span>
+                          </>
+                        ) : null
+                      })()}
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Choose an asset...</span>
+                  )}
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                
+                {showAssetDropdown && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-64 overflow-y-auto">
+                    {assets.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">
+                        No assets available. <a href="/assets" className="text-blue-500 hover:underline">Upload some content</a> first.
+                      </div>
+                    ) : (
+                      assets.map((asset) => (
+                        <button
+                          key={asset.asset_id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedAsset(asset.asset_id)
+                            setShowAssetDropdown(false)
+                          }}
+                          className={`w-full p-2 text-left hover:bg-gray-50 flex items-center gap-3 ${
+                            selectedAsset === asset.asset_id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                          }`}
+                        >
+                          <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                            {asset.type === 'image' ? (
+                              <img 
+                                src={asset.url} 
+                                alt={asset.display_name || asset.filename}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-gray-400 text-lg">🎬</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{asset.display_name || asset.filename}</div>
+                            <div className="text-sm text-gray-500">{asset.type}</div>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
             
             <div>
@@ -230,12 +308,21 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
             </div>
             
             <div className="flex gap-2">
-              <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">
+              <button 
+                type="submit" 
+                className="bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
+                disabled={!selectedAsset}
+              >
                 Add to Playlist
               </button>
               <button 
                 type="button" 
-                onClick={() => setShowAddForm(false)}
+                onClick={() => {
+                  setShowAddForm(false)
+                  setSelectedAsset('')
+                  setDuration(10)
+                  setShowAssetDropdown(false)
+                }}
                 className="bg-gray-500 text-white px-4 py-2 rounded"
               >
                 Cancel
