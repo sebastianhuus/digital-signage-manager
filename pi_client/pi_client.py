@@ -213,12 +213,19 @@ class SignageClient:
         browsers_to_try = [
             # Pi/Linux
             ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble'],
-            # Mac
-            ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--kiosk', '--no-first-run'],
-            # Windows
+            # Windows Edge
+            ['msedge', '--kiosk', '--no-first-run', '--disable-features=TranslateUI'],
+            # Windows Chrome
             ['chrome', '--kiosk', '--no-first-run'],
-            # Generic
-            ['google-chrome', '--kiosk', '--no-first-run']
+            # Windows Chrome (alternative path)
+            [r'C:\Program Files\Google\Chrome\Application\chrome.exe', '--kiosk', '--no-first-run'],
+            # Mac Chrome
+            ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--kiosk', '--no-first-run'],
+            # Generic Linux
+            ['google-chrome', '--kiosk', '--no-first-run'],
+            ['google-chrome-stable', '--kiosk', '--no-first-run'],
+            # Firefox as fallback (no kiosk, but fullscreen)
+            ['firefox', '--kiosk']
         ]
         
         for browser_cmd in browsers_to_try:
@@ -229,8 +236,10 @@ class SignageClient:
             except FileNotFoundError:
                 continue
                 
-        print("No suitable browser found. On Pi: sudo apt install chromium-browser")
-        print("On Mac: Install Google Chrome")
+        print("No suitable browser found.")
+        print("Windows: Edge should work automatically, or install Chrome")
+        print("Pi: sudo apt install chromium-browser")
+        print("Mac: Install Google Chrome")
         print(f"Content ready at: file://{html_path}")
             
     def send_heartbeat(self):
