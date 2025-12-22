@@ -3,6 +3,8 @@
 import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
+import Zoom from 'react-medium-image-zoom'
+import 'react-medium-image-zoom/dist/styles.css'
 
 interface PlaylistItem {
   id: number
@@ -13,6 +15,7 @@ interface PlaylistItem {
   type: string
   size: number
   split_config?: any
+  url?: string
 }
 
 interface Asset {
@@ -72,7 +75,23 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
     try {
       const response = await fetch(`/api/admin/screens/${screenId}/playlist`)
       const data = await response.json()
-      setPlaylist(data)
+      
+      // Fetch asset details for each playlist item to get URLs
+      const playlistWithAssets = await Promise.all(
+        data.map(async (item: PlaylistItem) => {
+          try {
+            const assetResponse = await fetch(`/api/admin/assets`)
+            const assets = await assetResponse.json()
+            const asset = assets.find((a: Asset) => a.asset_id === item.asset_id)
+            return { ...item, url: asset?.url }
+          } catch (error) {
+            console.error('Failed to fetch asset details:', error)
+            return item
+          }
+        })
+      )
+      
+      setPlaylist(playlistWithAssets)
     } catch (error) {
       console.error('Failed to fetch playlist:', error)
     }
@@ -350,6 +369,19 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
                 <div className="flex items-center space-x-4">
                   <div className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
                     #{index + 1}
+                  </div>
+                  <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {item.type === 'image' && item.url ? (
+                      <Zoom>
+                        <img 
+                          src={item.url} 
+                          alt={item.filename}
+                          className="w-full h-full object-cover cursor-zoom-in"
+                        />
+                      </Zoom>
+                    ) : (
+                      <div className="text-gray-400 text-lg">🎬</div>
+                    )}
                   </div>
                   <div>
                     <div className="font-medium">{item.filename}</div>
