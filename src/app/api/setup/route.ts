@@ -40,6 +40,7 @@ export async function POST() {
         asset_id VARCHAR(50) REFERENCES assets(asset_id),
         duration INTEGER NOT NULL,
         position INTEGER NOT NULL,
+        split_config JSONB,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `)
