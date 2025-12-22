@@ -135,8 +135,8 @@ export default function AssetsPage() {
               )}
             </div>
             <div className="p-4">
-              <div className="font-medium truncate" title={asset.filename}>
-                {asset.filename}
+              <div className="font-medium truncate" title={asset.display_name || asset.filename}>
+                {asset.display_name || asset.filename}
               </div>
               <div className="text-sm text-gray-500 mt-1">
                 {asset.type} • {formatSize(asset.size)}

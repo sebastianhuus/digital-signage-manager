@@ -210,18 +210,28 @@ class SignageClient:
             f.write(html_content)
             
         # Launch browser in fullscreen
-        try:
-            self.browser_process = subprocess.Popen([
-                'chromium-browser', 
-                '--kiosk', 
-                '--no-sandbox',
-                '--disable-infobars',
-                '--disable-session-crashed-bubble',
-                f'file://{html_path}'
-            ])
-            print(f"Displaying: {filename}")
-        except FileNotFoundError:
-            print("Chromium browser not found. Install with: sudo apt install chromium-browser")
+        browsers_to_try = [
+            # Pi/Linux
+            ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble'],
+            # Mac
+            ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '--kiosk', '--no-first-run'],
+            # Windows
+            ['chrome', '--kiosk', '--no-first-run'],
+            # Generic
+            ['google-chrome', '--kiosk', '--no-first-run']
+        ]
+        
+        for browser_cmd in browsers_to_try:
+            try:
+                self.browser_process = subprocess.Popen(browser_cmd + [f'file://{html_path}'])
+                print(f"Displaying: {filename} using {browser_cmd[0]}")
+                return
+            except FileNotFoundError:
+                continue
+                
+        print("No suitable browser found. On Pi: sudo apt install chromium-browser")
+        print("On Mac: Install Google Chrome")
+        print(f"Content ready at: file://{html_path}")
             
     def send_heartbeat(self):
         """Send status update to server"""
