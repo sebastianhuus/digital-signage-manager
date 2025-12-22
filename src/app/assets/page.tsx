@@ -8,6 +8,7 @@ interface Asset {
   id: number
   asset_id: string
   filename: string
+  display_name?: string
   type: string
   size: number
   url: string
