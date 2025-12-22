@@ -12,10 +12,17 @@ pip3 install requests
 ```
 
 ### 2. Configure Client
-Edit `pi_client.py` and update:
-```python
-API_BASE_URL = "https://your-app.vercel.app"  # Your Vercel URL
-SCREEN_ID = "tv-1"  # Unique ID for this Pi
+Copy the environment file and edit:
+```bash
+cp .env.example .env
+nano .env
+```
+
+Update these values:
+```bash
+SIGNAGE_API_URL=https://your-app.vercel.app
+SIGNAGE_API_KEY=your-api-key-here
+SIGNAGE_SCREEN_ID=tv-1
 ```
 
 ### 3. Run Client
@@ -38,8 +45,8 @@ After=network.target
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi
-ExecStart=/usr/bin/python3 /home/pi/pi_client.py
+WorkingDirectory=/home/pi/signage-manager/pi_client
+ExecStart=/usr/bin/python3 /home/pi/signage-manager/pi_client/pi_client.py
 Restart=always
 RestartSec=10
 
@@ -64,11 +71,14 @@ sudo systemctl start signage.service
 
 ## Configuration
 
-Edit these variables in `pi_client.py`:
-- `API_BASE_URL`: Your signage manager URL
-- `SCREEN_ID`: Unique identifier for this display
-- `POLL_INTERVAL`: How often to check for updates (seconds)
-- `HEARTBEAT_INTERVAL`: How often to send status (seconds)
+Create a `.env` file in the `pi_client` directory:
+```bash
+SIGNAGE_API_URL=https://your-app.vercel.app
+SIGNAGE_API_KEY=your-api-key-here
+SIGNAGE_SCREEN_ID=tv-1
+SIGNAGE_POLL_INTERVAL=30
+SIGNAGE_HEARTBEAT_INTERVAL=60
+```
 
 ## Troubleshooting
 

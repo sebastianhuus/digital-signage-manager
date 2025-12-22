@@ -12,13 +12,25 @@ import subprocess
 import threading
 from pathlib import Path
 
+# Load environment variables from .env file if it exists
+def load_env_file():
+    env_file = Path(__file__).parent / '.env'
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    key, value = line.strip().split('=', 1)
+                    os.environ[key] = value
+
+load_env_file()
+
 # Configuration
-API_BASE_URL = "https://your-app.vercel.app"  # Replace with your Vercel URL
-API_KEY = "signage-api-key-2025"
-SCREEN_ID = "tv-1"  # Change this for each Pi
+API_BASE_URL = os.getenv("SIGNAGE_API_URL", "https://your-app.vercel.app")
+API_KEY = os.getenv("SIGNAGE_API_KEY", "signage-api-key-2025")
+SCREEN_ID = os.getenv("SIGNAGE_SCREEN_ID", "tv-1")
 CACHE_DIR = Path.home() / "signage_cache"
-POLL_INTERVAL = 30  # seconds
-HEARTBEAT_INTERVAL = 60  # seconds
+POLL_INTERVAL = int(os.getenv("SIGNAGE_POLL_INTERVAL", "30"))  # seconds
+HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_HEARTBEAT_INTERVAL", "60"))  # seconds
 
 class SignageClient:
     def __init__(self):

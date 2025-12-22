@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Signage Manager
 
-## Getting Started
+A complete digital signage management system built with Next.js, designed for Raspberry Pi displays.
 
-First, run the development server:
+## Features
 
+- 🔐 **Authentication** - Password-based admin access
+- 📺 **Screen Management** - Add/remove displays with status monitoring
+- 📁 **Asset Library** - Upload images/videos with Vercel Blob storage
+- 🎵 **Playlist Builder** - Create content schedules for each screen
+- 🔄 **Auto-sync** - Raspberry Pi clients automatically poll for updates
+- 💓 **Heartbeat Monitoring** - Real-time status of all displays
+- 🌐 **API Access** - RESTful API for Pi clients with key authentication
+
+## Quick Start
+
+### 1. Deploy Web App
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/signage-manager)
+
+### 2. Setup Database
+- Add Vercel Postgres to your project
+- Visit `/api/setup` to initialize tables
+
+### 3. Configure Environment
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXTAUTH_SECRET=your-secret-here
+SIGNAGE_PASSWORD=your-admin-password
+API_KEY=your-pi-api-key
+BLOB_READ_WRITE_TOKEN=your-blob-token
+DATABASE_URL=your-postgres-url
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Setup Raspberry Pi
+See [`pi_client/README.md`](pi_client/README.md) for Pi setup instructions.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Architecture
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Frontend**: Next.js with Tailwind CSS
+- **Backend**: Next.js API routes
+- **Database**: PostgreSQL (Vercel Postgres)
+- **Storage**: Vercel Blob for media files
+- **Auth**: NextAuth.js for web, API keys for Pi clients
+- **Client**: Python script for Raspberry Pi displays
 
-## Learn More
+## Usage
 
-To learn more about Next.js, take a look at the following resources:
+1. **Login** with your admin password
+2. **Add Screens** - Create entries for each Pi display
+3. **Upload Assets** - Add images/videos to your library
+4. **Build Playlists** - Assign content to screens with timing
+5. **Deploy Pi Clients** - Run the Python script on each Pi
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Endpoints
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### For Pi Clients (require API key):
+- `GET /api/screens/{screenId}/config` - Screen configuration
+- `GET /api/screens/{screenId}/playlist` - Current playlist
+- `POST /api/screens/{screenId}/heartbeat` - Status updates
+- `GET /api/assets/{assetId}` - Asset metadata
+- `GET /api/assets/{assetId}/download` - Download files
 
-## Deploy on Vercel
+### For Web Admin:
+- `GET /api/admin/screens` - Manage screens
+- `GET /api/admin/assets` - Manage assets
+- `POST /api/admin/assets` - Upload files
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Development
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm install
+npm run dev
+```
+
+Visit `http://localhost:3000` and login with your configured password.
+
+## License
+
+MIT License - Feel free to use for personal or commercial projects.
