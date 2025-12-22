@@ -11,6 +11,8 @@ import requests
 import subprocess
 import threading
 from pathlib import Path
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+import socketserver
 
 # Load environment variables from .env file if it exists
 def load_env_file():
@@ -48,12 +50,52 @@ class SignageClient:
         self.current_item_index = 0
         self.item_start_time = 0
         self.browser_process = None
+        self.http_server = None
+        self.current_content_info = {}
         self.setup_cache_dir()
+        self.start_http_server()
         
     def setup_cache_dir(self):
         """Create cache directory if it doesn't exist"""
         CACHE_DIR.mkdir(exist_ok=True)
         print(f"Cache directory: {CACHE_DIR}")
+        
+    def start_http_server(self):
+        """Start local HTTP server to serve cached files"""
+        os.chdir(CACHE_DIR)
+        
+        class CustomHandler(SimpleHTTPRequestHandler):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, directory=str(CACHE_DIR), **kwargs)
+                
+            def do_GET(self):
+                if self.path == '/content-info.json':
+                    self.send_response(200)
+                    self.send_header('Content-type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    # Get current content info from the client instance
+                    import json
+                    content_info = getattr(self.server, 'content_info', {})
+                    response_data = json.dumps(content_info)
+                    print(f"Serving content-info.json: {response_data}")
+                    self.wfile.write(response_data.encode())
+                else:
+                    super().do_GET()
+                    
+            def log_message(self, format, *args):
+                # Suppress default HTTP server logs except for content-info requests
+                if 'content-info.json' in format % args:
+                    print(f"HTTP: {format % args}")
+                pass
+        
+        self.http_server = HTTPServer(('localhost', 8000), CustomHandler)
+        self.http_server.content_info = self.current_content_info
+        
+        # Start server in background thread
+        server_thread = threading.Thread(target=self.http_server.serve_forever, daemon=True)
+        server_thread.start()
+        print("Local HTTP server started on http://localhost:8000")
         
     def make_api_request(self, endpoint):
         """Make authenticated API request"""
@@ -134,8 +176,12 @@ class SignageClient:
             
         new_playlist = playlist_data.get('items', [])
         
+        # Convert to JSON strings for comparison to avoid dict comparison issues
+        new_playlist_str = json.dumps(new_playlist, sort_keys=True)
+        current_playlist_str = json.dumps(self.current_playlist, sort_keys=True)
+        
         # Check if playlist changed
-        if new_playlist != self.current_playlist:
+        if new_playlist_str != current_playlist_str:
             print("Playlist updated!")
             self.current_playlist = new_playlist
             self.current_item_index = 0
@@ -163,9 +209,11 @@ class SignageClient:
         
         # Check if it's time to move to next item
         if current_time - self.item_start_time >= current_item['duration']:
+            old_index = self.current_item_index
             self.current_item_index = (self.current_item_index + 1) % len(self.current_playlist)
             self.item_start_time = current_time
             current_item = self.current_playlist[self.current_item_index]
+            print(f"Switching from item {old_index} to {self.current_item_index}: {current_item['assetId']}")
             
         return current_item
         
@@ -177,39 +225,147 @@ class SignageClient:
             print(f"Cached file not found: {filename}")
             return
             
-        # Kill existing browser
-        if self.browser_process:
-            self.browser_process.terminate()
+        # Update content info for HTTP server
+        self.current_content_info = {
+            "assetId": asset_id,
+            "filename": filename,
+            "type": content_type,
+            "path": f"http://localhost:8000/{filename}"
+        }
+        self.http_server.content_info = self.current_content_info
             
-        # Create simple HTML for display
-        html_content = f"""
+        # Create HTML with proper crossfade using layered elements
+        html_content = """
         <!DOCTYPE html>
         <html>
         <head>
             <style>
-                body {{ margin: 0; padding: 0; background: black; overflow: hidden; }}
-                img, video {{ width: 100vw; height: 100vh; object-fit: cover; }}
+                body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
+                #container { position: relative; width: 100vw; height: 100vh; }
+                .content { 
+                    position: absolute; 
+                    top: 0; 
+                    left: 0; 
+                    width: 100%; 
+                    height: 100%; 
+                    object-fit: cover;
+                    opacity: 0;
+                    transition: opacity 0.5s ease-in-out;
+                }
+                .content.active { opacity: 1; }
             </style>
         </head>
         <body>
-        """
-        
-        if content_type == 'image':
-            html_content += f'<img src="file://{cache_path}" />'
-        else:
-            html_content += f'<video src="file://{cache_path}" autoplay muted loop></video>'
+            <div id="container"></div>
             
-        html_content += """
+            <script>
+                let currentElement = null;
+                let lastAssetId = '';
+                
+                console.log('Signage client JavaScript loaded');
+                
+                function showContent(assetId, type, src) {
+                    console.log('showContent called:', assetId, type, src);
+                    const container = document.getElementById('container');
+                    
+                    // Create new element
+                    let newElement;
+                    if (type === 'image') {
+                        newElement = document.createElement('img');
+                        newElement.src = src;
+                        newElement.className = 'content';
+                        newElement.onload = () => {
+                            console.log('Image loaded:', src);
+                            fadeIn(newElement);
+                        };
+                        newElement.onerror = () => {
+                            console.error('Image failed to load:', src);
+                        };
+                    } else {
+                        newElement = document.createElement('video');
+                        newElement.src = src;
+                        newElement.className = 'content';
+                        newElement.autoplay = true;
+                        newElement.muted = true;
+                        newElement.loop = true;
+                        newElement.onloadeddata = () => {
+                            console.log('Video loaded:', src);
+                            fadeIn(newElement);
+                        };
+                        newElement.onerror = () => {
+                            console.error('Video failed to load:', src);
+                        };
+                    }
+                    
+                    container.appendChild(newElement);
+                }
+                
+                function fadeIn(newElement) {
+                    console.log('fadeIn called');
+                    // Fade out old content
+                    if (currentElement) {
+                        currentElement.classList.remove('active');
+                        const oldElement = currentElement;
+                        setTimeout(() => {
+                            if (oldElement.parentNode) {
+                                oldElement.parentNode.removeChild(oldElement);
+                            }
+                        }, 500);
+                    }
+                    
+                    // Fade in new content
+                    setTimeout(() => {
+                        newElement.classList.add('active');
+                    }, 50);
+                    
+                    currentElement = newElement;
+                }
+                
+                // Poll for content updates
+                function checkForUpdates() {
+                    console.log('Checking for updates...');
+                    fetch('http://localhost:8000/content-info.json')
+                        .then(response => {
+                            console.log('Fetch response:', response.status);
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log('Content data received:', data);
+                            if (data.assetId !== lastAssetId) {
+                                console.log('Content changed from', lastAssetId, 'to', data.assetId);
+                                lastAssetId = data.assetId;
+                                showContent(data.assetId, data.type, data.path);
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Update check failed:', err);
+                        });
+                }
+                
+                // Start polling
+                console.log('Starting content polling...');
+                checkForUpdates();
+                setInterval(checkForUpdates, 1000);
+            </script>
         </body>
         </html>
         """
         
-        # Write HTML file
+        # Write HTML file only once
         html_path = CACHE_DIR / "display.html"
-        with open(html_path, 'w') as f:
-            f.write(html_content)
+        if not html_path.exists():
+            with open(html_path, 'w') as f:
+                f.write(html_content)
             
-        # Launch browser in fullscreen
+        # Only launch browser if not already running
+        if not self.browser_process or self.browser_process.poll() is not None:
+            self.launch_browser("http://localhost:8000/display.html")
+            print(f"Browser launched")
+        
+        print(f"Content updated: {filename} (Asset: {asset_id})")
+        
+    def launch_browser(self, url):
+        """Launch browser in fullscreen (only called once)"""
         browsers_to_try = [
             # Pi/Linux
             ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble'],
@@ -230,8 +386,13 @@ class SignageClient:
         
         for browser_cmd in browsers_to_try:
             try:
-                self.browser_process = subprocess.Popen(browser_cmd + [f'file://{html_path}'])
-                print(f"Displaying: {filename} using {browser_cmd[0]}")
+                # Launch browser as background process (non-blocking)
+                self.browser_process = subprocess.Popen(
+                    browser_cmd + [url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL
+                )
+                print(f"Browser launched: {browser_cmd[0]} (PID: {self.browser_process.pid})")
                 return
             except FileNotFoundError:
                 continue
@@ -240,7 +401,7 @@ class SignageClient:
         print("Windows: Edge should work automatically, or install Chrome")
         print("Pi: sudo apt install chromium-browser")
         print("Mac: Install Google Chrome")
-        print(f"Content ready at: file://{html_path}")
+        print(f"Content ready at: {url}")
             
     def send_heartbeat(self):
         """Send status update to server"""
@@ -293,24 +454,33 @@ class SignageClient:
         self.update_playlist()
         
         # Main display loop
+        last_displayed_asset = None
+        
         while True:
             try:
                 # Check for playlist updates
                 self.update_playlist()
                 
-                # Display current content
-                current_item = self.get_current_item()
-                if current_item:
-                    # Get asset info to find filename
-                    asset_info = self.get_asset_info(current_item['assetId'])
-                    if asset_info:
-                        self.display_content(
-                            current_item['assetId'],
-                            asset_info['filename'],
-                            current_item['type']
-                        )
-                
-                time.sleep(POLL_INTERVAL)
+                # Check for content switching more frequently (every 1 second)
+                for _ in range(POLL_INTERVAL):
+                    # Get current content
+                    current_item = self.get_current_item()
+                    if current_item:
+                        current_asset_id = current_item['assetId']
+                        
+                        # Only update display if content actually changed
+                        if current_asset_id != last_displayed_asset:
+                            # Get asset info to find filename
+                            asset_info = self.get_asset_info(current_asset_id)
+                            if asset_info:
+                                self.display_content(
+                                    current_asset_id,
+                                    asset_info['filename'],
+                                    current_item['type']
+                                )
+                                last_displayed_asset = current_asset_id
+                    
+                    time.sleep(1)  # Check every second for content switches
                 
             except KeyboardInterrupt:
                 print("Shutting down...")
@@ -319,6 +489,9 @@ class SignageClient:
                 break
             except Exception as e:
                 print(f"Error in main loop: {e}")
+                print(f"Error type: {type(e)}")
+                import traceback
+                traceback.print_exc()
                 time.sleep(5)
 
 if __name__ == "__main__":
