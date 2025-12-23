@@ -242,7 +242,7 @@ class SignageClient:
         <head>
             <style>
                 body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
-                #content { width: 100vw; height: 100vh; object-fit: cover; }
+                #content { width: 100vw; height: 100vh; object-fit: contain; }
             </style>
         </head>
         <body>
