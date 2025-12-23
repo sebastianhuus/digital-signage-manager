@@ -23,6 +23,7 @@ export default function ScreensPage() {
   const [screens, setScreens] = useState<Screen[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showApiKey, setShowApiKey] = useState<string | null>(null)
+  const [editingScreen, setEditingScreen] = useState<Screen | null>(null)
   const [newScreen, setNewScreen] = useState({
     screenId: '',
     name: '',
@@ -74,6 +75,34 @@ export default function ScreensPage() {
       }
     } catch (error) {
       console.error('Failed to add screen:', error)
+    }
+  }
+
+  const updateScreen = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingScreen) return
+    
+    try {
+      const response = await fetch(`/api/admin/screens/${editingScreen.screen_id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingScreen.name,
+          location: editingScreen.location,
+          resolution: editingScreen.resolution,
+          refreshInterval: editingScreen.refresh_interval
+        })
+      })
+      
+      if (response.ok) {
+        setEditingScreen(null)
+        fetchScreens()
+      } else {
+        const error = await response.json()
+        alert(error.error)
+      }
+    } catch (error) {
+      console.error('Failed to update screen:', error)
     }
   }
 
@@ -205,6 +234,53 @@ export default function ScreensPage() {
         </div>
       )}
 
+      {editingScreen && (
+        <div className="bg-white p-6 rounded shadow mb-6">
+          <h2 className="text-xl font-semibold mb-4">Edit Screen</h2>
+          <form onSubmit={updateScreen} className="grid grid-cols-2 gap-4">
+            <div className="p-2 bg-gray-100 rounded text-gray-600">
+              {editingScreen.screen_id} (ID cannot be changed)
+            </div>
+            <input
+              type="text"
+              placeholder="Display Name"
+              value={editingScreen.name}
+              onChange={(e) => setEditingScreen({...editingScreen, name: e.target.value})}
+              className="p-2 border rounded"
+              required
+            />
+            <input
+              type="text"
+              placeholder="Location"
+              value={editingScreen.location}
+              onChange={(e) => setEditingScreen({...editingScreen, location: e.target.value})}
+              className="p-2 border rounded"
+            />
+            <select
+              value={editingScreen.resolution}
+              onChange={(e) => setEditingScreen({...editingScreen, resolution: e.target.value})}
+              className="p-2 border rounded"
+            >
+              <option value="1920x1080">1920x1080</option>
+              <option value="1280x720">1280x720</option>
+              <option value="3840x2160">3840x2160</option>
+            </select>
+            <div className="col-span-2 flex gap-2">
+              <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">
+                Update Screen
+              </button>
+              <button 
+                type="button" 
+                onClick={() => setEditingScreen(null)}
+                className="bg-gray-500 text-white px-4 py-2 rounded"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       <div className="bg-white rounded shadow">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -246,6 +322,12 @@ export default function ScreensPage() {
                   </td>
                   <td className={`p-4 ${getStatusColor(status)}`}>{status}</td>
                   <td className="p-4">
+                    <button 
+                      onClick={() => setEditingScreen(screen)}
+                      className="bg-orange-500 text-white px-3 py-1 rounded mr-2"
+                    >
+                      Edit
+                    </button>
                     <button 
                       onClick={() => router.push(`/screens/${screen.screen_id}/playlist`)}
                       className="bg-blue-500 text-white px-3 py-1 rounded mr-2"
