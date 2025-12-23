@@ -50,6 +50,7 @@ class SignageClient:
         self.current_item_index = 0
         self.item_start_time = 0
         self.browser_process = None
+        self.browser_launched = False  # Simple flag instead of process checking
         self.http_server = None
         self.current_content_info = {}
         self.setup_cache_dir()
@@ -276,12 +277,13 @@ class SignageClient:
             with open(html_path, 'w') as f:
                 f.write(html_content)
             
-        # Only launch browser if not already running
-        if not self.browser_process or self.browser_process.poll() is not None:
+        # Only launch browser once
+        if not self.browser_launched:
             self.launch_browser("http://localhost:8000/display.html")
+            self.browser_launched = True
             print(f"Browser launched")
         else:
-            print(f"Browser already running (PID: {self.browser_process.pid})")
+            print(f"Browser already launched, updating content only")
         
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
