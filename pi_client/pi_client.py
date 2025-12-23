@@ -357,8 +357,8 @@ class SignageClient:
         
         browsers_to_try = [
             # Pi/Linux - try multiple approaches
-            ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--app=' + url],
-            ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars', '--app=' + url],
+            ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars'],
+            ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars'],
             # Windows Edge
             ['msedge', '--kiosk', '--no-first-run', '--disable-features=TranslateUI'],
             # Windows Chrome
