@@ -175,25 +175,27 @@ export default function AssetsPage() {
             ← Home
           </button>
         </div>
-        <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
-          {uploading ? 'Uploading...' : 'Upload File'}
-          <input
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            onChange={handleUpload}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
-        {selectedAssets.size > 0 && (
-          <button
-            onClick={deleteSelected}
-            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          >
-            Delete Selected ({selectedAssets.size})
-          </button>
-        )}
+        <div className="flex gap-2">
+          <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
+            {uploading ? 'Uploading...' : 'Upload File'}
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+          {selectedAssets.size > 0 && (
+            <button
+              onClick={deleteSelected}
+              className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+            >
+              Delete Selected ({selectedAssets.size})
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
