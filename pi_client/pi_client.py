@@ -366,9 +366,14 @@ class SignageClient:
         
     def launch_browser(self, url):
         """Launch browser in fullscreen (only called once)"""
+        # Set display for Pi
+        os.environ['DISPLAY'] = ':0'
+        
         browsers_to_try = [
-            # Pi/Linux
-            ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble'],
+            # Pi/Linux - try multiple approaches
+            ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble', '--start-fullscreen', '--disable-extensions', '--disable-plugins', '--no-first-run', '--disable-translate', '--disable-features=TranslateUI'],
+            ['chromium-browser', '--start-fullscreen', '--no-sandbox'],
+            ['/usr/bin/chromium-browser', '--kiosk', '--no-sandbox'],
             # Windows Edge
             ['msedge', '--kiosk', '--no-first-run', '--disable-features=TranslateUI'],
             # Windows Chrome
