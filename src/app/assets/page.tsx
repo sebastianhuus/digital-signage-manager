@@ -25,6 +25,7 @@ export default function AssetsPage() {
   const [uploading, setUploading] = useState(false)
   const [editingAsset, setEditingAsset] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
+  const [selectedAssets, setSelectedAssets] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -49,26 +50,28 @@ export default function AssetsPage() {
   }
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      for (const file of Array.from(files)) {
+        const formData = new FormData()
+        formData.append('file', file)
 
-      const response = await fetch('/api/admin/assets', {
-        method: 'POST',
-        body: formData
-      })
+        const response = await fetch('/api/admin/assets', {
+          method: 'POST',
+          body: formData
+        })
 
-      if (response.ok) {
-        fetchAssets()
-        e.target.value = ''
-      } else {
-        const error = await response.json()
-        alert(error.error)
+        if (!response.ok) {
+          const error = await response.json()
+          alert(`Failed to upload ${file.name}: ${error.error}`)
+        }
       }
+      
+      fetchAssets()
+      e.target.value = ''
     } catch (error) {
       console.error('Upload failed:', error)
       alert('Upload failed')
@@ -91,6 +94,33 @@ export default function AssetsPage() {
     } catch (error) {
       console.error('Failed to delete asset:', error)
     }
+  }
+
+  const deleteSelected = async () => {
+    if (selectedAssets.size === 0) return
+    if (!confirm(`Delete ${selectedAssets.size} selected assets? They will be removed from all playlists.`)) return
+
+    try {
+      for (const assetId of selectedAssets) {
+        await fetch(`/api/admin/assets?assetId=${assetId}`, {
+          method: 'DELETE'
+        })
+      }
+      setSelectedAssets(new Set())
+      fetchAssets()
+    } catch (error) {
+      console.error('Failed to delete assets:', error)
+    }
+  }
+
+  const toggleSelection = (assetId: string) => {
+    const newSelected = new Set(selectedAssets)
+    if (newSelected.has(assetId)) {
+      newSelected.delete(assetId)
+    } else {
+      newSelected.add(assetId)
+    }
+    setSelectedAssets(newSelected)
   }
 
   const startEdit = (asset: Asset) => {
@@ -150,16 +180,31 @@ export default function AssetsPage() {
           <input
             type="file"
             accept="image/*,video/*"
+            multiple
             onChange={handleUpload}
             disabled={uploading}
             className="hidden"
           />
         </label>
+        {selectedAssets.size > 0 && (
+          <button
+            onClick={deleteSelected}
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            Delete Selected ({selectedAssets.size})
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
         {assets.map((asset) => (
-          <div key={asset.id} className="bg-white rounded shadow overflow-hidden">
+          <div key={asset.id} className="bg-white rounded shadow overflow-hidden relative">
+            <input
+              type="checkbox"
+              checked={selectedAssets.has(asset.asset_id)}
+              onChange={() => toggleSelection(asset.asset_id)}
+              className="absolute top-2 left-2 z-10"
+            />
             <div className="aspect-video bg-gray-100 flex items-center justify-center">
               {asset.type === 'image' ? (
                 <Zoom>
