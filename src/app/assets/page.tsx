@@ -102,9 +102,12 @@ export default function AssetsPage() {
 
     try {
       for (const assetId of selectedAssets) {
-        await fetch(`/api/admin/assets?assetId=${assetId}`, {
+        const response = await fetch(`/api/admin/assets?assetId=${assetId}`, {
           method: 'DELETE'
         })
+        if (!response.ok) {
+          console.error(`Failed to delete ${assetId}:`, await response.text())
+        }
       }
       setSelectedAssets(new Set())
       fetchAssets()

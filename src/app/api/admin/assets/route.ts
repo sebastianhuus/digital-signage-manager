@@ -99,7 +99,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Asset ID required' }, { status: 400 })
     }
     
-    // Remove from playlists first
+    // Remove from all referencing tables first
+    await pool.query('DELETE FROM preset_playlist_items WHERE asset_id = $1', [assetId])
     await pool.query('DELETE FROM playlists WHERE asset_id = $1', [assetId])
     
     // Remove from assets
