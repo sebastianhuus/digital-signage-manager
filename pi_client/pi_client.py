@@ -269,9 +269,6 @@ class SignageClient:
         </body>
         </html>
         """
-        """
-        </html>
-        """
         
         # Write HTML file only once
         html_path = CACHE_DIR / "display.html"
@@ -283,6 +280,8 @@ class SignageClient:
         if not self.browser_process or self.browser_process.poll() is not None:
             self.launch_browser("http://localhost:8000/display.html")
             print(f"Browser launched")
+        else:
+            print(f"Browser already running (PID: {self.browser_process.pid})")
         
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
