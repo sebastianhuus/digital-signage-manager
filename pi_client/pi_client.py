@@ -273,9 +273,10 @@ class SignageClient:
         
         # Write HTML file only once
         html_path = CACHE_DIR / "display.html"
-        if not html_path.exists():
-            with open(html_path, 'w') as f:
-                f.write(html_content)
+        # Force recreation to update CSS
+        html_path.unlink(missing_ok=True)
+        with open(html_path, 'w') as f:
+            f.write(html_content)
             
         # Only launch browser once
         if not self.browser_launched:
