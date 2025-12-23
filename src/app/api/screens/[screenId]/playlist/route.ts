@@ -6,11 +6,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ screenId: string }> }
 ) {
-  if (!validateApiKey(request)) {
+  const validatedScreenId = await validateApiKey(request)
+  if (!validatedScreenId) {
     return unauthorizedResponse()
   }
 
   const { screenId } = await params
+  
+  // Ensure the API key belongs to this screen
+  if (validatedScreenId !== screenId) {
+    return unauthorizedResponse()
+  }
   
   try {
     const result = await pool.query(`

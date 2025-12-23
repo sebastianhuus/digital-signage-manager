@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
+import { generateApiKey } from '@/lib/apiKeys'
 
 export async function GET() {
   try {
@@ -22,23 +23,25 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    const apiKey = generateApiKey()
     
     const result = await pool.query(`
-      INSERT INTO screens (screen_id, name, location, resolution, refresh_interval)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO screens (screen_id, name, location, resolution, refresh_interval, api_key)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `, [
       body.screenId,
       body.name,
       body.location || null,
       body.resolution || '1920x1080',
-      body.refreshInterval || 30
+      body.refreshInterval || 30,
+      apiKey
     ])
     
     return NextResponse.json(result.rows[0])
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Database error:', error)
-    if (error.code === '23505') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
       return NextResponse.json({ error: 'Screen ID already exists' }, { status: 400 })
     }
     return NextResponse.json({ error: 'Database error' }, { status: 500 })

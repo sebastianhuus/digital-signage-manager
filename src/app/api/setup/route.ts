@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 
 export async function GET() {
@@ -16,9 +16,16 @@ export async function POST() {
         resolution VARCHAR(20) DEFAULT '1920x1080',
         refresh_interval INTEGER DEFAULT 30,
         location VARCHAR(100),
+        api_key VARCHAR(100),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+    `)
+
+    // Add api_key column if it doesn't exist
+    await pool.query(`
+      ALTER TABLE screens 
+      ADD COLUMN IF NOT EXISTS api_key VARCHAR(100);
     `)
 
     await pool.query(`
@@ -57,33 +64,14 @@ export async function POST() {
       );
     `)
 
-    // Insert sample data
-    await pool.query(`
-      INSERT INTO screens (screen_id, name, location) VALUES 
-      ('tv-1', 'Main Display', 'Lobby'),
-      ('tv-2', 'Secondary Display', 'Conference Room')
-      ON CONFLICT (screen_id) DO NOTHING;
-    `)
-
-    await pool.query(`
-      INSERT INTO assets (asset_id, filename, type, size) VALUES 
-      ('welcome-img', 'welcome.jpg', 'image', 1024000),
-      ('promo-video', 'promo.mp4', 'video', 5120000),
-      ('news-feed', 'news.png', 'image', 512000),
-      ('schedule-img', 'schedule.jpg', 'image', 768000),
-      ('announcement', 'announcement.png', 'image', 256000)
-      ON CONFLICT (asset_id) DO NOTHING;
-    `)
-
-    await pool.query(`
-      INSERT INTO playlists (screen_id, asset_id, duration, position) VALUES 
-      ('tv-1', 'welcome-img', 10, 1),
-      ('tv-1', 'promo-video', 30, 2),
-      ('tv-1', 'news-feed', 15, 3),
-      ('tv-2', 'schedule-img', 20, 1),
-      ('tv-2', 'announcement', 10, 2)
-      ON CONFLICT DO NOTHING;
-    `)
+    // Generate API keys for screens that don't have them
+    const { generateApiKey } = await import('@/lib/apiKeys')
+    const screensWithoutKeys = await pool.query('SELECT screen_id FROM screens WHERE api_key IS NULL')
+    
+    for (const screen of screensWithoutKeys.rows) {
+      const apiKey = generateApiKey()
+      await pool.query('UPDATE screens SET api_key = $1 WHERE screen_id = $2', [apiKey, screen.screen_id])
+    }
 
     return NextResponse.json({ success: true, message: 'Database initialized' })
   } catch (error) {

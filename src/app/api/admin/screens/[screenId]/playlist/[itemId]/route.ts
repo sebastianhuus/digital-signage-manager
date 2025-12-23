@@ -10,7 +10,7 @@ export async function PUT(
   
   try {
     let query = 'UPDATE playlists SET '
-    let values = []
+    const values: unknown[] = []
     let paramCount = 1
     
     if (body.duration !== undefined) {

@@ -6,7 +6,8 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ assetId: string }> }
 ) {
-  if (!validateApiKey(request)) {
+  const validatedScreenId = await validateApiKey(request)
+  if (!validatedScreenId) {
     return unauthorizedResponse()
   }
 
