@@ -200,14 +200,14 @@ export default function AssetsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
         {assets.map((asset) => (
-          <div key={asset.id} className="bg-white rounded shadow overflow-hidden flex flex-col h-80">
+          <div key={asset.id} className="bg-white rounded shadow overflow-hidden flex flex-col h-80 relative">
             <input
               type="checkbox"
               checked={selectedAssets.has(asset.asset_id)}
               onChange={() => toggleSelection(asset.asset_id)}
               className="absolute top-2 left-2 z-10"
             />
-            <div className="h-48 bg-gray-100 flex items-center justify-center flex-shrink-0 relative">
+            <div className="h-48 bg-gray-100 flex items-center justify-center flex-shrink-0">
               {asset.type === 'image' ? (
                 <Zoom>
                   <img 
