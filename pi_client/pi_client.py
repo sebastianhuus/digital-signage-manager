@@ -269,6 +269,7 @@ class SignageClient:
         </body>
         </html>
         """
+        """
         </html>
         """
         
