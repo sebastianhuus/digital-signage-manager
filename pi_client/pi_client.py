@@ -268,57 +268,35 @@ class SignageClient:
                     console.log('showContent called:', assetId, type, src);
                     const container = document.getElementById('container');
                     
-                    // Create new element
-                    let newElement;
-                    if (type === 'image') {
-                        newElement = document.createElement('img');
-                        newElement.src = src;
-                        newElement.className = 'content';
-                        newElement.onload = () => {
-                            console.log('Image loaded:', src);
-                            fadeIn(newElement);
-                        };
-                        newElement.onerror = () => {
-                            console.error('Image failed to load:', src);
-                        };
-                    } else {
-                        newElement = document.createElement('video');
-                        newElement.src = src;
-                        newElement.className = 'content';
-                        newElement.autoplay = true;
-                        newElement.muted = true;
-                        newElement.loop = true;
-                        newElement.onloadeddata = () => {
-                            console.log('Video loaded:', src);
-                            fadeIn(newElement);
-                        };
-                        newElement.onerror = () => {
-                            console.error('Video failed to load:', src);
-                        };
+                    // Reuse existing element if same type
+                    if (currentElement && currentElement.tagName.toLowerCase() === type) {
+                        currentElement.src = src;
+                        return;
                     }
                     
-                    container.appendChild(newElement);
+                    // Remove old element
+                    if (currentElement) {
+                        currentElement.remove();
+                    }
+                    
+                    // Create new element only when type changes
+                    if (type === 'image') {
+                        currentElement = document.createElement('img');
+                        currentElement.className = 'content active';
+                    } else {
+                        currentElement = document.createElement('video');
+                        currentElement.className = 'content active';
+                        currentElement.autoplay = true;
+                        currentElement.muted = true;
+                        currentElement.loop = true;
+                    }
+                    
+                    currentElement.src = src;
+                    container.appendChild(currentElement);
                 }
                 
                 function fadeIn(newElement) {
-                    console.log('fadeIn called');
-                    // Fade out old content
-                    if (currentElement) {
-                        currentElement.classList.remove('active');
-                        const oldElement = currentElement;
-                        setTimeout(() => {
-                            if (oldElement.parentNode) {
-                                oldElement.parentNode.removeChild(oldElement);
-                            }
-                        }, 500);
-                    }
-                    
-                    // Fade in new content
-                    setTimeout(() => {
-                        newElement.classList.add('active');
-                    }, 50);
-                    
-                    currentElement = newElement;
+                    // Not needed anymore - element reuse handles this
                 }
                 
                 // Poll for content updates
@@ -369,11 +347,18 @@ class SignageClient:
         # Set display for Pi
         os.environ['DISPLAY'] = ':0'
         
+        # Hide taskbar and cursor
+        try:
+            subprocess.run(['pcmanfm', '--desktop-off'], check=False)
+            subprocess.run(['lxpanel', '--profile', 'LXDE-pi', '--command', 'exit'], check=False)
+            subprocess.run(['unclutter', '-idle', '0.5', '-root'], check=False)
+        except:
+            pass
+        
         browsers_to_try = [
             # Pi/Linux - try multiple approaches
-            ['chromium-browser', '--kiosk', '--no-sandbox', '--disable-infobars', '--disable-session-crashed-bubble', '--start-fullscreen', '--disable-extensions', '--disable-plugins', '--no-first-run', '--disable-translate', '--disable-features=TranslateUI'],
-            ['chromium-browser', '--start-fullscreen', '--no-sandbox'],
-            ['/usr/bin/chromium-browser', '--kiosk', '--no-sandbox'],
+            ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--app=' + url],
+            ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars', '--app=' + url],
             # Windows Edge
             ['msedge', '--kiosk', '--no-first-run', '--disable-features=TranslateUI'],
             # Windows Chrome
