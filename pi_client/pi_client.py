@@ -241,91 +241,34 @@ class SignageClient:
         <head>
             <style>
                 body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
-                #container { position: relative; width: 100vw; height: 100vh; }
-                .content { 
-                    position: absolute; 
-                    top: 0; 
-                    left: 0; 
-                    width: 100%; 
-                    height: 100%; 
-                    object-fit: cover;
-                    opacity: 0;
-                    transition: opacity 0.5s ease-in-out;
-                }
-                .content.active { opacity: 1; }
+                #content { width: 100vw; height: 100vh; object-fit: cover; }
             </style>
         </head>
         <body>
-            <div id="container"></div>
+            <img id="content" />
             
             <script>
-                let currentElement = null;
                 let lastAssetId = '';
+                const contentEl = document.getElementById('content');
                 
-                console.log('Signage client JavaScript loaded');
-                
-                function showContent(assetId, type, src) {
-                    console.log('showContent called:', assetId, type, src);
-                    const container = document.getElementById('container');
-                    
-                    // Reuse existing element if same type
-                    if (currentElement && currentElement.tagName.toLowerCase() === type) {
-                        currentElement.src = src;
-                        return;
-                    }
-                    
-                    // Remove old element
-                    if (currentElement) {
-                        currentElement.remove();
-                    }
-                    
-                    // Create new element only when type changes
-                    if (type === 'image') {
-                        currentElement = document.createElement('img');
-                        currentElement.className = 'content active';
-                    } else {
-                        currentElement = document.createElement('video');
-                        currentElement.className = 'content active';
-                        currentElement.autoplay = true;
-                        currentElement.muted = true;
-                        currentElement.loop = true;
-                    }
-                    
-                    currentElement.src = src;
-                    container.appendChild(currentElement);
-                }
-                
-                function fadeIn(newElement) {
-                    // Not needed anymore - element reuse handles this
-                }
-                
-                // Poll for content updates
                 function checkForUpdates() {
-                    console.log('Checking for updates...');
                     fetch('http://localhost:8000/content-info.json')
-                        .then(response => {
-                            console.log('Fetch response:', response.status);
-                            return response.json();
-                        })
+                        .then(response => response.json())
                         .then(data => {
-                            console.log('Content data received:', data);
                             if (data.assetId !== lastAssetId) {
-                                console.log('Content changed from', lastAssetId, 'to', data.assetId);
                                 lastAssetId = data.assetId;
-                                showContent(data.assetId, data.type, data.path);
+                                contentEl.src = data.path;
                             }
                         })
-                        .catch(err => {
-                            console.error('Update check failed:', err);
-                        });
+                        .catch(err => console.error('Update check failed:', err));
                 }
                 
-                // Start polling
-                console.log('Starting content polling...');
                 checkForUpdates();
                 setInterval(checkForUpdates, 1000);
             </script>
         </body>
+        </html>
+        """
         </html>
         """
         
