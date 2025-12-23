@@ -281,9 +281,6 @@ class SignageClient:
         if not self.browser_launched:
             self.launch_browser("http://localhost:8000/display.html")
             self.browser_launched = True
-            print(f"Browser launched")
-        else:
-            print(f"Browser already launched, updating content only")
         
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
@@ -302,8 +299,8 @@ class SignageClient:
         
         browsers_to_try = [
             # Pi/Linux - try multiple approaches
-            ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars'],
-            ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars'],
+            ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
+            ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
             # Windows Edge
             ['msedge', '--kiosk', '--no-first-run', '--disable-features=TranslateUI'],
             # Windows Chrome
