@@ -3,11 +3,11 @@ import { pool } from '@/lib/db'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { screenId: string } }
+  { params }: { params: Promise<{ screenId: string }> }
 ) {
   try {
     const body = await request.json()
-    const { screenId } = params
+    const { screenId } = await params
     
     const result = await pool.query(`
       UPDATE screens 
