@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import PageContainer from "@/components/PageContainer"
+import { redactApiKey } from "@/lib/apiKeys"
 
 interface Screen {
   id: number
@@ -12,6 +13,7 @@ interface Screen {
   location: string
   resolution: string
   refresh_interval: number
+  api_key: string
   last_heartbeat: string | null
 }
 
@@ -20,6 +22,7 @@ export default function ScreensPage() {
   const router = useRouter()
   const [screens, setScreens] = useState<Screen[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showApiKey, setShowApiKey] = useState<string | null>(null)
   const [newScreen, setNewScreen] = useState({
     screenId: '',
     name: '',
@@ -60,8 +63,10 @@ export default function ScreensPage() {
       })
       
       if (response.ok) {
+        const newScreenData = await response.json()
         setNewScreen({ screenId: '', name: '', location: '', resolution: '1920x1080', refreshInterval: 30 })
         setShowAddForm(false)
+        setShowApiKey(newScreenData.screen_id) // Show the new API key
         fetchScreens()
       } else {
         const error = await response.json()
@@ -69,6 +74,23 @@ export default function ScreensPage() {
       }
     } catch (error) {
       console.error('Failed to add screen:', error)
+    }
+  }
+
+  const regenerateApiKey = async (screenId: string) => {
+    if (!confirm('Generate a new API key? The old key will stop working.')) return
+    
+    try {
+      const response = await fetch(`/api/admin/screens/${screenId}/regenerate-key`, {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        setShowApiKey(screenId)
+        fetchScreens()
+      }
+    } catch (error) {
+      console.error('Failed to regenerate API key:', error)
     }
   }
 
@@ -190,7 +212,7 @@ export default function ScreensPage() {
               <th className="p-4 text-left">Screen ID</th>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Location</th>
-              <th className="p-4 text-left">Resolution</th>
+              <th className="p-4 text-left">API Key</th>
               <th className="p-4 text-left">Status</th>
               <th className="p-4 text-left">Actions</th>
             </tr>
@@ -203,7 +225,25 @@ export default function ScreensPage() {
                   <td className="p-4 font-mono">{screen.screen_id}</td>
                   <td className="p-4">{screen.name}</td>
                   <td className="p-4">{screen.location}</td>
-                  <td className="p-4">{screen.resolution}</td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                        {showApiKey === screen.screen_id ? screen.api_key : redactApiKey(screen.api_key)}
+                      </code>
+                      <button
+                        onClick={() => setShowApiKey(showApiKey === screen.screen_id ? null : screen.screen_id)}
+                        className="text-blue-500 hover:underline text-sm"
+                      >
+                        {showApiKey === screen.screen_id ? 'Hide' : 'Show'}
+                      </button>
+                      <button
+                        onClick={() => regenerateApiKey(screen.screen_id)}
+                        className="text-orange-500 hover:underline text-sm"
+                      >
+                        Regenerate
+                      </button>
+                    </div>
+                  </td>
                   <td className={`p-4 ${getStatusColor(status)}`}>{status}</td>
                   <td className="p-4">
                     <button 

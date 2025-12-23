@@ -273,9 +273,9 @@ export default function AssetsPage() {
                 <div className="text-xs text-gray-500 mt-1">
                   {asset.type} • {formatSize(asset.size)}
                 </div>
-                <div className="text-xs text-gray-400 mt-1 font-mono truncate">
-                  {asset.asset_id}
-                </div>
+                  <div className="text-xs text-gray-400 mt-1 font-mono truncate">
+                    {asset.asset_id}
+                  </div>
               </div>
               <button
                 onClick={() => deleteAsset(asset.asset_id)}
