@@ -200,77 +200,79 @@ export default function AssetsPage() {
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-4">
         {assets.map((asset) => (
-          <div key={asset.id} className="bg-white rounded shadow overflow-hidden relative">
+          <div key={asset.id} className="bg-white rounded shadow overflow-hidden flex flex-col h-80">
             <input
               type="checkbox"
               checked={selectedAssets.has(asset.asset_id)}
               onChange={() => toggleSelection(asset.asset_id)}
               className="absolute top-2 left-2 z-10"
             />
-            <div className="aspect-video bg-gray-100 flex items-center justify-center">
+            <div className="h-48 bg-gray-100 flex items-center justify-center flex-shrink-0 relative">
               {asset.type === 'image' ? (
                 <Zoom>
                   <img 
                     src={asset.url} 
                     alt={asset.filename}
-                    className="w-full h-full object-contain cursor-zoom-in"
+                    className="w-full h-full object-cover cursor-zoom-in"
                   />
                 </Zoom>
               ) : (
                 <div className="text-gray-400 text-2xl">🎬</div>
               )}
             </div>
-            <div className="p-3">
-              {editingAsset === asset.asset_id ? (
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full p-1 border rounded text-xs"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') saveEdit(asset.asset_id)
-                      if (e.key === 'Escape') cancelEdit()
-                    }}
-                    autoFocus
-                  />
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => saveEdit(asset.asset_id)}
-                      className="flex-1 bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="flex-1 bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
-                    >
-                      Cancel
-                    </button>
+            <div className="p-3 flex-1 flex flex-col">
+              <div className="flex-1">
+                {editingAsset === asset.asset_id ? (
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      className="w-full p-1 border rounded text-xs"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(asset.asset_id)
+                        if (e.key === 'Escape') cancelEdit()
+                      }}
+                      autoFocus
+                    />
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => saveEdit(asset.asset_id)}
+                        className="flex-1 bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={cancelEdit}
+                        className="flex-1 bg-gray-500 text-white px-2 py-1 rounded text-xs hover:bg-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div 
-                  className="font-medium truncate cursor-pointer hover:bg-gray-50 p-1 rounded flex items-center gap-1 group text-sm" 
-                  title="Click to edit name"
-                  onClick={() => startEdit(asset)}
-                >
-                  <span className="flex-1 truncate">{asset.display_name || asset.filename}</span>
-                  <svg 
-                    className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+                ) : (
+                  <div 
+                    className="font-medium truncate cursor-pointer hover:bg-gray-50 p-1 rounded flex items-center gap-1 group text-sm" 
+                    title="Click to edit name"
+                    onClick={() => startEdit(asset)}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
+                    <span className="flex-1 truncate">{asset.display_name || asset.filename}</span>
+                    <svg 
+                      className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {asset.type} • {formatSize(asset.size)}
                 </div>
-              )}
-              <div className="text-xs text-gray-500 mt-1">
-                {asset.type} • {formatSize(asset.size)}
-              </div>
-              <div className="text-xs text-gray-400 mt-1 font-mono truncate">
-                {asset.asset_id}
+                <div className="text-xs text-gray-400 mt-1 font-mono truncate">
+                  {asset.asset_id}
+                </div>
               </div>
               <button
                 onClick={() => deleteAsset(asset.asset_id)}
