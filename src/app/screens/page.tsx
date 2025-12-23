@@ -288,8 +288,33 @@ export default function ScreensPage() {
               <th className="p-4 text-left">Screen ID</th>
               <th className="p-4 text-left">Name</th>
               <th className="p-4 text-left">Location</th>
-              <th className="p-4 text-left">API Key</th>
-              <th className="p-4 text-left">Status</th>
+              <th className="p-4 text-left">
+                <span className="flex items-center gap-1">
+                  API Key
+                  <span 
+                    className="relative group text-gray-400 cursor-help text-sm w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                    title="Each Raspberry Pi display needs this key to connect and download its content. Copy this key to your Pi's configuration."
+                  >
+                    ?
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+                      Each Raspberry Pi display needs this key to connect and download its content. Copy this key to your Pi's configuration.
+                    </span>
+                  </span>
+                </span>
+              </th>
+              <th className="p-4 text-left">
+                <span className="flex items-center gap-1">
+                  Status
+                  <span 
+                    className="relative group text-gray-400 cursor-help text-sm w-4 h-4 rounded-full bg-gray-200 flex items-center justify-center hover:bg-gray-300 transition-colors"
+                  >
+                    ?
+                    <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-800 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-0 pointer-events-none whitespace-nowrap z-10">
+                      Online: Connected within 2 minutes • Recently seen: Connected within 10 minutes • Offline: No connection for over 10 minutes
+                    </span>
+                  </span>
+                </span>
+              </th>
               <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
