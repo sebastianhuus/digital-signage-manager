@@ -1,11 +1,26 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 
-export async function GET() {
-  return POST()
+export async function GET(request: NextRequest) {
+  return POST(request)
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  // Simple protection - require setup key
+  const setupKey = process.env.SETUP_KEY
+  if (!setupKey) {
+    return NextResponse.json({ error: 'Setup not configured' }, { status: 500 })
+  }
+  
+  // Check for setup key in query params or headers
+  const url = new URL(request.url)
+  const keyFromQuery = url.searchParams.get('key')
+  const keyFromHeader = request.headers.get('x-setup-key')
+  
+  if (keyFromQuery !== setupKey && keyFromHeader !== setupKey) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     // Create tables
     await pool.query(`
