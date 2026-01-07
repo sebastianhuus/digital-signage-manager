@@ -4,6 +4,25 @@ import { useSession } from "next-auth/react"
 import { useRouter, useParams } from "next/navigation"
 import { useEffect, useState } from "react"
 import PageContainer from "@/components/PageContainer"
+import Zoom from 'react-medium-image-zoom'
+import 'react-medium-image-zoom/dist/styles.css'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 interface ScreenMember {
   screen_id: string
@@ -63,10 +82,10 @@ function SplitPreview({ url, layout, size = 'large' }: { url: string; layout: st
   const isVertical = layoutInfo?.isVertical
 
   const sizeClasses = size === 'small'
-    ? 'w-32 h-20'
+    ? 'w-16 h-16'
     : 'max-w-full max-h-48'
 
-  const labelSize = size === 'small' ? 'text-[10px] px-1' : 'text-xs px-2 py-1'
+  const labelSize = size === 'small' ? 'text-[8px] px-0.5' : 'text-xs px-2 py-1'
 
   return (
     <div className="relative inline-block">
@@ -93,6 +112,124 @@ function SplitPreview({ url, layout, size = 'large' }: { url: string; layout: st
   )
 }
 
+function SortableContentItem({
+  item,
+  index,
+  layout,
+  editingDuration,
+  editDurationValue,
+  setEditDurationValue,
+  onStartEdit,
+  onSaveDuration,
+  onCancelEdit,
+  onRemove
+}: {
+  item: GroupPlaylistItem
+  index: number
+  layout: string
+  editingDuration: number | null
+  editDurationValue: number
+  setEditDurationValue: (v: number) => void
+  onStartEdit: (item: GroupPlaylistItem) => void
+  onSaveDuration: (id: number) => void
+  onCancelEdit: () => void
+  onRemove: (assetId: string) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="p-4 flex justify-between items-center bg-white">
+      <div className="flex items-center space-x-4">
+        <div
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+          title="Drag to reorder"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+          </svg>
+        </div>
+        <div className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
+          #{index + 1}
+        </div>
+        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+          {item.type === 'image' && item.url ? (
+            <Zoom>
+              <SplitPreview url={item.url} layout={layout} size="small" />
+            </Zoom>
+          ) : (
+            <div className="text-gray-400 text-lg">&#9658;</div>
+          )}
+        </div>
+        <div>
+          <div className="font-medium">{item.display_name || item.filename}</div>
+          <div className="text-sm text-gray-500 flex items-center gap-2">
+            <span>{item.type === 'video' ? 'Video (all screens)' : 'Image (split)'}</span>
+            <span>•</span>
+            {editingDuration === item.id ? (
+              <div className="flex items-center gap-1 duration-editor">
+                <input
+                  type="number"
+                  value={editDurationValue}
+                  onChange={(e) => setEditDurationValue(parseInt(e.target.value) || 0)}
+                  className="w-16 px-1 py-0.5 border rounded text-xs"
+                  min="1"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') onSaveDuration(item.id)
+                    if (e.key === 'Escape') onCancelEdit()
+                  }}
+                  autoFocus
+                />
+                <span className="text-xs">s</span>
+                <button
+                  onClick={() => onSaveDuration(item.id)}
+                  className="text-green-600 hover:text-green-800 text-xs"
+                  title="Save"
+                >
+                  ✓
+                </button>
+                <button
+                  onClick={onCancelEdit}
+                  className="text-red-600 hover:text-red-800 text-xs"
+                  title="Cancel"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <span
+                className="cursor-pointer hover:bg-gray-100 px-1 rounded"
+                onClick={() => onStartEdit(item)}
+                title="Click to edit duration"
+              >
+                {item.duration}s
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      <button
+        onClick={() => onRemove(item.original_asset_id)}
+        className="bg-red-500 text-white px-3 py-1 rounded text-sm"
+      >
+        Remove
+      </button>
+    </div>
+  )
+}
+
 export default function GroupDetailPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -108,10 +245,20 @@ export default function GroupDetailPage() {
   // Content management state
   const [groupContent, setGroupContent] = useState<GroupPlaylistItem[]>([])
   const [allAssets, setAllAssets] = useState<Asset[]>([])
-  const [showAddContent, setShowAddContent] = useState(false)
-  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [selectedAsset, setSelectedAsset] = useState('')
+  const [showAssetDropdown, setShowAssetDropdown] = useState(false)
   const [contentDuration, setContentDuration] = useState(10)
   const [addingContent, setAddingContent] = useState(false)
+  const [editingDuration, setEditingDuration] = useState<number | null>(null)
+  const [editDurationValue, setEditDurationValue] = useState(0)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -127,6 +274,26 @@ export default function GroupDetailPage() {
       fetchAssets()
     }
   }, [session, groupId])
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showAssetDropdown) {
+        const target = event.target as Element
+        if (!target.closest('.asset-dropdown')) {
+          setShowAssetDropdown(false)
+        }
+      }
+      if (editingDuration !== null) {
+        const target = event.target as Element
+        if (!target.closest('.duration-editor')) {
+          cancelEditDuration()
+        }
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showAssetDropdown, editingDuration])
 
   const fetchGroup = async () => {
     try {
@@ -254,7 +421,8 @@ export default function GroupDetailPage() {
     }
   }
 
-  const addContent = async () => {
+  const addContent = async (e: React.FormEvent) => {
+    e.preventDefault()
     if (!selectedAsset) return
 
     setAddingContent(true)
@@ -263,14 +431,14 @@ export default function GroupDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          assetId: selectedAsset.asset_id,
+          assetId: selectedAsset,
           duration: contentDuration
         })
       })
 
       if (response.ok) {
-        setShowAddContent(false)
-        setSelectedAsset(null)
+        setShowAddForm(false)
+        setSelectedAsset('')
         setContentDuration(10)
         fetchGroupContent()
       } else {
@@ -298,6 +466,65 @@ export default function GroupDetailPage() {
       }
     } catch (error) {
       console.error('Failed to remove content:', error)
+    }
+  }
+
+  const startEditDuration = (item: GroupPlaylistItem) => {
+    setEditingDuration(item.id)
+    setEditDurationValue(item.duration)
+  }
+
+  const cancelEditDuration = () => {
+    setEditingDuration(null)
+    setEditDurationValue(0)
+  }
+
+  const saveDuration = async (id: number) => {
+    try {
+      const response = await fetch(`/api/admin/screen-groups/${groupId}/content/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: editDurationValue })
+      })
+
+      if (response.ok) {
+        setEditingDuration(null)
+        setEditDurationValue(0)
+        fetchGroupContent()
+      } else {
+        const error = await response.json()
+        alert(error.error)
+      }
+    } catch (error) {
+      console.error('Failed to update duration:', error)
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    if (active.id !== over?.id) {
+      const oldIndex = groupContent.findIndex(item => item.id === active.id)
+      const newIndex = groupContent.findIndex(item => item.id === over?.id)
+
+      const newContent = arrayMove(groupContent, oldIndex, newIndex)
+      setGroupContent(newContent)
+
+      // Update positions in database
+      try {
+        await Promise.all(
+          newContent.map((item, index) =>
+            fetch(`/api/admin/screen-groups/${groupId}/content/${item.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ position: index + 1 })
+            })
+          )
+        )
+      } catch (error) {
+        console.error('Failed to update content order:', error)
+        fetchGroupContent() // Revert on error
+      }
     }
   }
 
@@ -343,6 +570,8 @@ export default function GroupDetailPage() {
     a => !groupContent.some(gc => gc.original_asset_id === a.asset_id) &&
          !a.filename.startsWith('tile-')
   )
+
+  const selectedAssetData = allAssets.find(a => a.asset_id === selectedAsset)
 
   return (
     <PageContainer>
@@ -473,11 +702,11 @@ export default function GroupDetailPage() {
       </div>
 
       {/* Group Content Section */}
-      <div className="bg-white p-6 rounded shadow mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Group Content</h2>
+      <div className="bg-white rounded shadow mb-6">
+        <div className="p-4 border-b flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Group Content ({groupContent.length} items)</h2>
           <button
-            onClick={() => setShowAddContent(true)}
+            onClick={() => setShowAddForm(true)}
             disabled={!allScreensAssigned}
             className={`px-4 py-2 rounded ${
               allScreensAssigned
@@ -490,152 +719,176 @@ export default function GroupDetailPage() {
         </div>
 
         {!allScreensAssigned && (
-          <p className="text-yellow-600 text-sm mb-4">
+          <p className="text-yellow-600 text-sm p-4 border-b bg-yellow-50">
             Assign all {layoutInfo.positions} screens before adding content.
           </p>
         )}
 
-        {groupContent.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No content assigned to this group yet.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {groupContent.map((item) => (
-              <div key={item.id} className="flex items-center gap-4 p-3 border rounded">
-                {item.type === 'image' ? (
-                  <SplitPreview url={item.url} layout={group.layout} size="small" />
-                ) : (
-                  <div className="w-32 h-20 bg-gray-200 rounded flex items-center justify-center">
-                    <span className="text-gray-500 text-2xl">&#9658;</span>
-                  </div>
-                )}
-                <div className="flex-1">
-                  <p className="font-medium">{item.display_name || item.filename}</p>
-                  <p className="text-sm text-gray-500">
-                    {item.type === 'video' ? 'Video (same on all screens)' : 'Image (split across screens)'}
-                  </p>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {item.duration}s
-                </div>
-                <button
-                  onClick={() => removeContent(item.original_asset_id)}
-                  className="text-red-500 hover:underline text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        {showAddForm && (
+          <div className="p-6 border-b bg-gray-50">
+            <h3 className="text-lg font-semibold mb-4">Add Content to Group</h3>
+            <form onSubmit={addContent} className="space-y-4">
+              <div>
+                <label className="block mb-2">Select Asset:</label>
+                <div className="relative asset-dropdown">
+                  <button
+                    type="button"
+                    onClick={() => setShowAssetDropdown(!showAssetDropdown)}
+                    className="w-full p-2 border rounded bg-white text-left flex items-center justify-between"
+                  >
+                    {selectedAssetData ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {selectedAssetData.type === 'image' ? (
+                            <img
+                              src={selectedAssetData.url}
+                              alt={selectedAssetData.display_name || selectedAssetData.filename}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-gray-400 text-xs">&#9658;</span>
+                          )}
+                        </div>
+                        <span className="truncate">{selectedAssetData.display_name || selectedAssetData.filename}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500">Choose an asset...</span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
 
-      {/* Add Content Modal */}
-      {showAddContent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4">Add Content to Group</h2>
-
-            {selectedAsset ? (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <h3 className="font-medium mb-2">{selectedAsset.display_name || selectedAsset.filename}</h3>
-                  {selectedAsset.type === 'image' ? (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">
-                        This image will be split across {layoutInfo.positions} screens:
-                      </p>
-                      <SplitPreview url={selectedAsset.url} layout={group.layout} />
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">
-                        This video will play on all {layoutInfo.positions} screens simultaneously.
-                      </p>
-                      <video
-                        src={selectedAsset.url}
-                        className="max-w-full max-h-48 rounded mx-auto"
-                        controls
-                      />
+                  {showAssetDropdown && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border rounded shadow-lg max-h-64 overflow-y-auto">
+                      {availableAssets.length === 0 ? (
+                        <div className="p-4 text-center text-gray-500">
+                          No assets available. <a href="/assets" className="text-blue-500 hover:underline">Upload some content</a> first.
+                        </div>
+                      ) : (
+                        availableAssets.map((asset) => (
+                          <button
+                            key={asset.asset_id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAsset(asset.asset_id)
+                              setShowAssetDropdown(false)
+                            }}
+                            className={`w-full p-2 text-left hover:bg-gray-50 flex items-center gap-3 ${
+                              selectedAsset === asset.asset_id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                            }`}
+                          >
+                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                              {asset.type === 'image' ? (
+                                <img
+                                  src={asset.url}
+                                  alt={asset.display_name || asset.filename}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-gray-400 text-lg">&#9658;</span>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium truncate">{asset.display_name || asset.filename}</div>
+                              <div className="text-sm text-gray-500">{asset.type}</div>
+                            </div>
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Duration (seconds)</label>
-                  <input
-                    type="number"
-                    value={contentDuration}
-                    onChange={(e) => setContentDuration(parseInt(e.target.value) || 10)}
-                    min={1}
-                    className="w-full p-2 border rounded"
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={addContent}
-                    disabled={addingContent}
-                    className="flex-1 bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
-                  >
-                    {addingContent ? 'Adding...' : 'Add to Group'}
-                  </button>
-                  <button
-                    onClick={() => setSelectedAsset(null)}
-                    className="bg-gray-500 text-white px-4 py-2 rounded"
-                  >
-                    Back
-                  </button>
-                </div>
               </div>
-            ) : (
-              <div>
-                <p className="text-sm text-gray-500 mb-4">Select an asset to add:</p>
 
-                {availableAssets.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8">
-                    No assets available. Upload some assets first.
+              {selectedAssetData && selectedAssetData.type === 'image' && (
+                <div className="text-center py-4 bg-white rounded border">
+                  <p className="text-sm text-gray-500 mb-2">
+                    This image will be split across {layoutInfo.positions} screens:
                   </p>
-                ) : (
-                  <div className="grid grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-                    {availableAssets.map((asset) => (
-                      <div
-                        key={asset.asset_id}
-                        onClick={() => setSelectedAsset(asset)}
-                        className="border rounded p-2 cursor-pointer hover:border-blue-500 hover:bg-blue-50"
-                      >
-                        {asset.type === 'image' ? (
-                          <img
-                            src={asset.url}
-                            alt={asset.display_name || asset.filename}
-                            className="w-full h-20 object-cover rounded mb-1"
-                          />
-                        ) : (
-                          <div className="w-full h-20 bg-gray-200 rounded mb-1 flex items-center justify-center">
-                            <span className="text-gray-500 text-2xl">&#9658;</span>
-                          </div>
-                        )}
-                        <p className="text-xs truncate">{asset.display_name || asset.filename}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                  <SplitPreview url={selectedAssetData.url} layout={group.layout} size="large" />
+                </div>
+              )}
 
-            <button
-              onClick={() => {
-                setShowAddContent(false)
-                setSelectedAsset(null)
-              }}
-              className="mt-4 w-full bg-gray-200 text-gray-700 px-4 py-2 rounded"
-            >
-              Cancel
-            </button>
+              {selectedAssetData && selectedAssetData.type === 'video' && (
+                <div className="text-center py-4 bg-white rounded border">
+                  <p className="text-sm text-gray-500">
+                    This video will play on all {layoutInfo.positions} screens simultaneously.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <label className="block mb-2">Duration (seconds):</label>
+                <input
+                  type="number"
+                  value={contentDuration}
+                  onChange={(e) => setContentDuration(parseInt(e.target.value) || 10)}
+                  min={1}
+                  className="w-full p-2 border rounded"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={!selectedAsset || addingContent}
+                  className="bg-green-500 text-white px-4 py-2 rounded disabled:bg-gray-400"
+                >
+                  {addingContent ? 'Adding...' : 'Add to Group'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false)
+                    setSelectedAsset('')
+                    setContentDuration(10)
+                    setShowAssetDropdown(false)
+                  }}
+                  className="bg-gray-500 text-white px-4 py-2 rounded"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
-      )}
+        )}
+
+        {groupContent.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">
+            No content in playlist. Add some content to get started.
+          </div>
+        ) : (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={groupContent.map(item => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="divide-y">
+                {groupContent.map((item, index) => (
+                  <SortableContentItem
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    layout={group.layout}
+                    editingDuration={editingDuration}
+                    editDurationValue={editDurationValue}
+                    setEditDurationValue={setEditDurationValue}
+                    onStartEdit={startEditDuration}
+                    onSaveDuration={saveDuration}
+                    onCancelEdit={cancelEditDuration}
+                    onRemove={removeContent}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
       {/* Available Screens Section */}
       <div className="bg-white p-6 rounded shadow">
