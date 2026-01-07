@@ -70,7 +70,22 @@ export default function Home() {
       </div>
       
       <footer className="mt-16 text-center text-gray-400 text-sm">
-        Signage Manager v{getVersionWithBuild()}
+        <div>Signage Manager v{getVersionWithBuild()}</div>
+        <a
+          href="https://github.com/sebastianhuus/digital-signage-manager"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block mt-2"
+          aria-label="Visit our github page"
+        >
+          <img
+            src="/brands/github.svg"
+            alt="github icon"
+            width="20"
+            height="20"
+            className="opacity-50 hover:opacity-70 filter grayscale hover:grayscale-0 transition-all duration-200"
+          />
+        </a>
       </footer>
     </PageContainer>
   )
