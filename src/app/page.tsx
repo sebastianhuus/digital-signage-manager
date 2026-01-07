@@ -45,22 +45,29 @@ export default function Home() {
           Sign Out
         </button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div 
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div
           onClick={() => router.push('/screens')}
           className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
         >
           <h2 className="text-xl font-semibold mb-4">Screens</h2>
           <p className="text-gray-600">Manage your digital displays</p>
         </div>
-        <div 
+        <div
+          onClick={() => router.push('/screen-groups')}
+          className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
+        >
+          <h2 className="text-xl font-semibold mb-4">Screen Groups</h2>
+          <p className="text-gray-600">Manage multi-display setups</p>
+        </div>
+        <div
           onClick={() => router.push('/assets')}
           className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
         >
           <h2 className="text-xl font-semibold mb-4">Assets</h2>
           <p className="text-gray-600">Upload and organize media</p>
         </div>
-        <div 
+        <div
           onClick={() => router.push('/presets')}
           className="bg-white p-6 rounded shadow cursor-pointer hover:shadow-lg transition-shadow"
         >
