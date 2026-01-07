@@ -58,27 +58,33 @@ const LAYOUT_INFO: Record<string, { label: string; positions: number; isVertical
   '1x2': { label: '1x2 (2 Portrait)', positions: 2, isVertical: true },
 }
 
-function SplitPreview({ url, layout }: { url: string; layout: string }) {
+function SplitPreview({ url, layout, size = 'large' }: { url: string; layout: string; size?: 'small' | 'large' }) {
   const layoutInfo = LAYOUT_INFO[layout]
   const isVertical = layoutInfo?.isVertical
+
+  const sizeClasses = size === 'small'
+    ? 'w-32 h-20'
+    : 'max-w-full max-h-48'
+
+  const labelSize = size === 'small' ? 'text-[10px] px-1' : 'text-xs px-2 py-1'
 
   return (
     <div className="relative inline-block">
       <img
         src={url}
         alt="Preview"
-        className="max-w-full max-h-48 rounded"
+        className={`${sizeClasses} object-cover rounded`}
       />
       <div className={`absolute inset-0 flex ${isVertical ? 'flex-col' : 'flex-row'}`}>
         {Array.from({ length: layoutInfo?.positions || 0 }).map((_, i) => (
           <div
             key={i}
-            className={`border-2 border-dashed border-blue-500 ${
+            className={`border border-dashed border-blue-500 ${
               isVertical ? 'flex-1 w-full' : 'flex-1 h-full'
             } flex items-center justify-center`}
           >
-            <span className="bg-blue-500 text-white text-xs px-2 py-1 rounded opacity-75">
-              Screen {i}
+            <span className={`bg-blue-500 text-white ${labelSize} rounded opacity-75`}>
+              {i}
             </span>
           </div>
         ))}
@@ -497,11 +503,13 @@ export default function GroupDetailPage() {
           <div className="space-y-3">
             {groupContent.map((item) => (
               <div key={item.id} className="flex items-center gap-4 p-3 border rounded">
-                <img
-                  src={item.url}
-                  alt={item.display_name || item.filename}
-                  className="w-20 h-14 object-cover rounded"
-                />
+                {item.type === 'image' ? (
+                  <SplitPreview url={item.url} layout={group.layout} size="small" />
+                ) : (
+                  <div className="w-32 h-20 bg-gray-200 rounded flex items-center justify-center">
+                    <span className="text-gray-500 text-2xl">&#9658;</span>
+                  </div>
+                )}
                 <div className="flex-1">
                   <p className="font-medium">{item.display_name || item.filename}</p>
                   <p className="text-sm text-gray-500">
