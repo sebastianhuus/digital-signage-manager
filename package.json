@@ -1,6 +1,6 @@
 {
   "name": "signage-manager",
-  "version": "0.2.8",
+  "version": "0.3.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,8 @@
     "pg": "^8.16.3",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-medium-image-zoom": "^5.4.0"
+    "react-medium-image-zoom": "^5.4.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

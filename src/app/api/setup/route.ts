@@ -79,6 +79,54 @@ export async function POST(request: NextRequest) {
       );
     `)
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS screen_groups (
+        id SERIAL PRIMARY KEY,
+        group_id VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        layout VARCHAR(10) NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS screen_group_members (
+        id SERIAL PRIMARY KEY,
+        group_id VARCHAR(50) REFERENCES screen_groups(group_id) ON DELETE CASCADE,
+        screen_id VARCHAR(50) REFERENCES screens(screen_id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, position),
+        UNIQUE(screen_id)
+      );
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS group_playlists (
+        id SERIAL PRIMARY KEY,
+        group_id VARCHAR(50) REFERENCES screen_groups(group_id) ON DELETE CASCADE,
+        original_asset_id VARCHAR(50) REFERENCES assets(asset_id) ON DELETE CASCADE,
+        duration INTEGER NOT NULL DEFAULT 10,
+        position INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, position)
+      );
+    `)
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS split_assets (
+        id SERIAL PRIMARY KEY,
+        original_asset_id VARCHAR(50) REFERENCES assets(asset_id) ON DELETE CASCADE,
+        tile_asset_id VARCHAR(50) REFERENCES assets(asset_id) ON DELETE CASCADE,
+        group_id VARCHAR(50) REFERENCES screen_groups(group_id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(group_id, original_asset_id, position)
+      );
+    `)
+
     // Generate API keys for screens that don't have them
     const { generateApiKey } = await import('@/lib/apiKeys')
     const screensWithoutKeys = await pool.query('SELECT screen_id FROM screens WHERE api_key IS NULL')
