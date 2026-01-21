@@ -4,6 +4,10 @@ Python client for Raspberry Pi to display digital signage content.
 
 ## Setup on Raspberry Pi
 
+### (Optional) Connect over SSH
+
+Find your Pi on the network if connected directly over ethernet `arp -a | grep -a ".home"`
+
 ### 1. Clone Repository
 ```bash
 cd /home/pi
