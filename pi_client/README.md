@@ -22,7 +22,24 @@ sudo apt install python3-requests code
 ```
 
 ### 3. Configure Client
-Copy the environment file and edit:
+
+Run the setup script to configure the environment:
+```bash
+./setup_env.sh
+```
+
+The script will prompt you for:
+- API URL (e.g., https://your-app.vercel.app)
+- API Key
+- Screen ID
+- Poll interval (optional, defaults to 30 seconds)
+- Heartbeat interval (optional, defaults to 60 seconds)
+
+You typically get the API URL, API Key, and Screen ID from the `/screens` page after adding your new screen.
+
+**Manual Configuration (Alternative)**
+
+If you prefer to configure manually:
 ```bash
 cp .env.example .env
 nano .env
@@ -34,8 +51,6 @@ SIGNAGE_API_URL=https://your-app.vercel.app
 SIGNAGE_API_KEY=your-api-key-here
 SIGNAGE_SCREEN_ID=tv-1
 ```
-
-You typically get these from the `/screens` page after adding your new screen. It will generate an api key and an id.
 
 ### 4. Run Client
 ```bash
