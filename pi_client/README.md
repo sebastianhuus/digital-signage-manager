@@ -31,6 +31,8 @@ SIGNAGE_API_KEY=your-api-key-here
 SIGNAGE_SCREEN_ID=tv-1
 ```
 
+You typically get these from the `/screens` page after adding your new screen. It will generate an api key and an id.
+
 ### 4. Run Client
 ```bash
 python3 pi_client.py
