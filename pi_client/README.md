@@ -43,12 +43,27 @@ python3 pi_client.py
 ```
 
 ### 5. Auto-start on Boot
-Create systemd service:
+
+Run the installation script to automatically create and enable the systemd service:
+```bash
+chmod +x install_service.sh
+./install_service.sh
+```
+
+The script will:
+- Automatically detect the working directory
+- Prompt for the username to run the service (defaults to current user)
+- Create the systemd service file with correct paths
+- Enable and start the service
+
+**Manual Installation (Alternative)**
+
+If you prefer to create the service manually:
 ```bash
 sudo nano /etc/systemd/system/signage.service
 ```
 
-Add:
+Add (replace `admin` and paths as needed):
 ```ini
 [Unit]
 Description=Signage Manager Client
@@ -56,9 +71,9 @@ After=network.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/signage-manager/pi_client
-ExecStart=/usr/bin/python3 /home/pi/signage-manager/pi_client/pi_client.py
+User=admin
+WorkingDirectory=/home/admin/signage-manager/pi_client
+ExecStart=/usr/bin/python3 /home/admin/signage-manager/pi_client/pi_client.py
 Restart=always
 RestartSec=10
 
@@ -68,6 +83,7 @@ WantedBy=multi-user.target
 
 Enable service:
 ```bash
+sudo systemctl daemon-reload
 sudo systemctl enable signage.service
 sudo systemctl start signage.service
 ```
