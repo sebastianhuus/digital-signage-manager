@@ -4,14 +4,21 @@ Python client for Raspberry Pi to display digital signage content.
 
 ## Setup on Raspberry Pi
 
-### 1. Install Dependencies
+### 1. Clone Repository
+```bash
+cd /home/pi
+git clone https://github.com/sebastianhuus/digital-signage-manager.git signage-manager
+cd signage-manager/pi_client
+```
+
+### 2. Install Dependencies
 ```bash
 sudo apt update
-sudo apt install python3-pip chromium-browser
+sudo apt install python3-pip code
 pip3 install requests
 ```
 
-### 2. Configure Client
+### 3. Configure Client
 Copy the environment file and edit:
 ```bash
 cp .env.example .env
@@ -25,12 +32,12 @@ SIGNAGE_API_KEY=your-api-key-here
 SIGNAGE_SCREEN_ID=tv-1
 ```
 
-### 3. Run Client
+### 4. Run Client
 ```bash
 python3 pi_client.py
 ```
 
-### 4. Auto-start on Boot
+### 5. Auto-start on Boot
 Create systemd service:
 ```bash
 sudo nano /etc/systemd/system/signage.service
