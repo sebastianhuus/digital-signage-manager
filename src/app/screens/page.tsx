@@ -340,17 +340,13 @@ export default function ScreensPage() {
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <code
-                        className={`px-2 py-1 rounded text-sm transition-colors ${
+                        className={`px-2 py-1 rounded text-sm transition-colors cursor-pointer ${
                           copiedKey === screen.screen_id
                             ? 'bg-green-200'
-                            : 'bg-gray-100'
-                        } ${showApiKey === screen.screen_id ? 'cursor-pointer hover:bg-gray-200' : ''}`}
-                        onClick={() => {
-                          if (showApiKey === screen.screen_id) {
-                            copyApiKey(screen.screen_id, screen.api_key)
-                          }
-                        }}
-                        title={showApiKey === screen.screen_id ? 'Click to copy' : undefined}
+                            : 'bg-gray-100 hover:bg-gray-200'
+                        }`}
+                        onClick={() => copyApiKey(screen.screen_id, screen.api_key)}
+                        title="Click to copy"
                       >
                         {copiedKey === screen.screen_id
                           ? 'Copied!'
