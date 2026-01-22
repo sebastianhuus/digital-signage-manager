@@ -23,6 +23,7 @@ export default function ScreensPage() {
   const [screens, setScreens] = useState<Screen[]>([])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showApiKey, setShowApiKey] = useState<string | null>(null)
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [editingScreen, setEditingScreen] = useState<Screen | null>(null)
   const [newScreen, setNewScreen] = useState({
     screenId: '',
@@ -156,6 +157,16 @@ export default function ScreensPage() {
       case 'Online': return 'text-green-600'
       case 'Recently seen': return 'text-yellow-600'
       default: return 'text-red-600'
+    }
+  }
+
+  const copyApiKey = async (screenId: string, apiKey: string) => {
+    try {
+      await navigator.clipboard.writeText(apiKey)
+      setCopiedKey(screenId)
+      setTimeout(() => setCopiedKey(null), 1500)
+    } catch (error) {
+      console.error('Failed to copy API key:', error)
     }
   }
 
@@ -328,8 +339,22 @@ export default function ScreensPage() {
                   <td className="p-4">{screen.location}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
-                      <code className="bg-gray-100 px-2 py-1 rounded text-sm">
-                        {showApiKey === screen.screen_id ? screen.api_key : redactApiKey(screen.api_key)}
+                      <code
+                        className={`px-2 py-1 rounded text-sm transition-colors ${
+                          copiedKey === screen.screen_id
+                            ? 'bg-green-200'
+                            : 'bg-gray-100'
+                        } ${showApiKey === screen.screen_id ? 'cursor-pointer hover:bg-gray-200' : ''}`}
+                        onClick={() => {
+                          if (showApiKey === screen.screen_id) {
+                            copyApiKey(screen.screen_id, screen.api_key)
+                          }
+                        }}
+                        title={showApiKey === screen.screen_id ? 'Click to copy' : undefined}
+                      >
+                        {copiedKey === screen.screen_id
+                          ? 'Copied!'
+                          : (showApiKey === screen.screen_id ? screen.api_key : redactApiKey(screen.api_key))}
                       </code>
                       <button
                         onClick={() => setShowApiKey(showApiKey === screen.screen_id ? null : screen.screen_id)}
