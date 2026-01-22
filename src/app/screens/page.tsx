@@ -340,7 +340,7 @@ export default function ScreensPage() {
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <code
-                        className={`px-2 py-1 rounded text-sm transition-colors cursor-pointer ${
+                        className={`px-2 py-1 rounded text-sm transition-colors cursor-pointer relative ${
                           copiedKey === screen.screen_id
                             ? 'bg-green-200'
                             : 'bg-gray-100 hover:bg-gray-200'
@@ -348,9 +348,16 @@ export default function ScreensPage() {
                         onClick={() => copyApiKey(screen.screen_id, screen.api_key)}
                         title="Click to copy"
                       >
-                        {copiedKey === screen.screen_id
-                          ? 'Copied!'
-                          : (showApiKey === screen.screen_id ? screen.api_key : redactApiKey(screen.api_key))}
+                        {/* Original text for sizing - invisible when copied */}
+                        <span className={copiedKey === screen.screen_id ? 'invisible' : ''}>
+                          {showApiKey === screen.screen_id ? screen.api_key : redactApiKey(screen.api_key)}
+                        </span>
+                        {/* Overlay "Copied!" text */}
+                        {copiedKey === screen.screen_id && (
+                          <span className="absolute inset-0 flex items-center justify-center">
+                            Copied!
+                          </span>
+                        )}
                       </code>
                       <button
                         onClick={() => setShowApiKey(showApiKey === screen.screen_id ? null : screen.screen_id)}
