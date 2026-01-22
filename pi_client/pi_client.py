@@ -299,7 +299,10 @@ class SignageClient:
             pass
         
         browsers_to_try = [
-            # Pi/Linux - try multiple approaches
+            # Pi/Linux - try multiple approaches (chromium is the correct command on newer Pi OS)
+            ['chromium', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
+            ['chromium', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
+            # Older Pi OS versions used chromium-browser
             ['chromium-browser', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
             ['chromium-browser', '--start-fullscreen', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
             # Windows Edge
