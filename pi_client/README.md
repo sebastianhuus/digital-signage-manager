@@ -136,7 +136,7 @@ python3 pi_client.py
 ```
 
 ### Browser issues:
-If Chromium doesn't start, try:
+Chromium Browser is pre-installed on Raspberry Pi OS. If it doesn't start, the client will try to launch it automatically. If you need to reinstall:
 ```bash
-sudo apt install chromium-browser --fix-missing
+sudo apt install chromium --fix-missing
 ```
