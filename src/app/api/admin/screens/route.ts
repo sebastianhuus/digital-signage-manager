@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
     const apiKey = generateApiKey()
     
     const result = await pool.query(`
-      INSERT INTO screens (screen_id, name, location, resolution, refresh_interval, api_key)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO screens (screen_id, name, location, resolution, refresh_interval, api_key, orientation)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
     `, [
       body.screenId,
@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
       body.location || null,
       body.resolution || '1920x1080',
       body.refreshInterval || 30,
-      apiKey
+      apiKey,
+      body.orientation || 'landscape'
     ])
     
     return NextResponse.json(result.rows[0])

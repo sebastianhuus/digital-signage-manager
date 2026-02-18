@@ -34,7 +34,8 @@ export async function GET(
       name: screen.name,
       resolution: screen.resolution,
       refreshInterval: screen.refresh_interval,
-      location: screen.location
+      location: screen.location,
+      orientation: screen.orientation || 'landscape'
     })
   } catch (error) {
     console.error('Database error:', error)

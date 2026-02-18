@@ -46,7 +46,7 @@ interface Asset {
   url: string
 }
 
-function SortablePlaylistItem({ item, index, onEdit, onRemove, editingDuration, editDurationValue, setEditDurationValue, saveDuration, cancelEditDuration }: any) {
+function SortablePlaylistItem({ item, index, onEdit, onRemove, editingDuration, editDurationValue, setEditDurationValue, saveDuration, cancelEditDuration, screenOrientation }: any) {
   const {
     attributes,
     listeners,
@@ -76,7 +76,7 @@ function SortablePlaylistItem({ item, index, onEdit, onRemove, editingDuration, 
         <div className="bg-gray-100 px-3 py-1 rounded text-sm font-mono">
           #{index + 1}
         </div>
-        <div className="w-16 h-16 bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+        <div className={`${screenOrientation === 'portrait' ? 'w-12 h-20' : 'w-16 h-16'} bg-gray-100 rounded flex items-center justify-center overflow-hidden flex-shrink-0`}>
           {item.type === 'image' && item.url ? (
             <Zoom>
               <img 
@@ -160,6 +160,7 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
   const [editingDuration, setEditingDuration] = useState<number | null>(null)
   const [editDurationValue, setEditDurationValue] = useState(0)
   const [screenId, setScreenId] = useState<string>('')
+  const [screenOrientation, setScreenOrientation] = useState<string>('landscape')
 
   useEffect(() => {
     params.then(p => setScreenId(p.screenId))
@@ -175,8 +176,23 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
     if (session && screenId) {
       fetchPlaylist()
       fetchAssets()
+      fetchScreenOrientation()
     }
   }, [session, screenId])
+
+  const fetchScreenOrientation = async () => {
+    if (!screenId) return
+    try {
+      const response = await fetch('/api/admin/screens')
+      const screens = await response.json()
+      const screen = screens.find((s: any) => s.screen_id === screenId)
+      if (screen) {
+        setScreenOrientation(screen.orientation || 'landscape')
+      }
+    } catch (error) {
+      console.error('Failed to fetch screen orientation:', error)
+    }
+  }
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -382,7 +398,12 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
     <div className="min-h-screen p-8">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Playlist for {screenId}</h1>
+          <h1 className="text-3xl font-bold">
+            Playlist for {screenId}
+            {screenOrientation === 'portrait' && (
+              <span className="ml-3 bg-purple-100 text-purple-700 text-sm px-2 py-1 rounded align-middle">Portrait</span>
+            )}
+          </h1>
           <div className="flex gap-4">
             <button 
               onClick={() => router.push('/')}
@@ -580,6 +601,7 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
                     setEditDurationValue={setEditDurationValue}
                     saveDuration={saveDuration}
                     cancelEditDuration={cancelEditDuration}
+                    screenOrientation={screenOrientation}
                   />
                 ))}
               </div>

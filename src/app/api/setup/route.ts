@@ -39,8 +39,14 @@ export async function POST(request: NextRequest) {
 
     // Add api_key column if it doesn't exist
     await pool.query(`
-      ALTER TABLE screens 
+      ALTER TABLE screens
       ADD COLUMN IF NOT EXISTS api_key VARCHAR(100);
+    `)
+
+    // Add orientation column if it doesn't exist
+    await pool.query(`
+      ALTER TABLE screens
+      ADD COLUMN IF NOT EXISTS orientation VARCHAR(10) DEFAULT 'landscape';
     `)
 
     await pool.query(`
