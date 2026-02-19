@@ -12,6 +12,7 @@ interface Screen {
   name: string
   location: string
   resolution: string
+  orientation: string
   refresh_interval: number
   api_key: string
   last_heartbeat: string | null
@@ -29,6 +30,7 @@ export default function ScreensPage() {
     screenId: '',
     name: '',
     location: '',
+    orientation: 'landscape',
     resolution: '1920x1080',
     refreshInterval: 30
   })
@@ -66,7 +68,7 @@ export default function ScreensPage() {
       
       if (response.ok) {
         const newScreenData = await response.json()
-        setNewScreen({ screenId: '', name: '', location: '', resolution: '1920x1080', refreshInterval: 30 })
+        setNewScreen({ screenId: '', name: '', location: '', orientation: 'landscape', resolution: '1920x1080', refreshInterval: 30 })
         setShowAddForm(false)
         setShowApiKey(newScreenData.screen_id) // Show the new API key
         fetchScreens()
@@ -91,6 +93,7 @@ export default function ScreensPage() {
           name: editingScreen.name,
           location: editingScreen.location,
           resolution: editingScreen.resolution,
+          orientation: editingScreen.orientation,
           refreshInterval: editingScreen.refresh_interval
         })
       })
@@ -221,13 +224,35 @@ export default function ScreensPage() {
               className="p-2 border rounded"
             />
             <select
+              value={newScreen.orientation}
+              onChange={(e) => {
+                const orientation = e.target.value
+                const resolution = orientation === 'portrait' ? '1080x1920' : '1920x1080'
+                setNewScreen({...newScreen, orientation, resolution})
+              }}
+              className="p-2 border rounded"
+            >
+              <option value="landscape">Landscape</option>
+              <option value="portrait">Portrait</option>
+            </select>
+            <select
               value={newScreen.resolution}
               onChange={(e) => setNewScreen({...newScreen, resolution: e.target.value})}
               className="p-2 border rounded"
             >
-              <option value="1920x1080">1920x1080</option>
-              <option value="1280x720">1280x720</option>
-              <option value="3840x2160">3840x2160</option>
+              {newScreen.orientation === 'portrait' ? (
+                <>
+                  <option value="1080x1920">1080x1920</option>
+                  <option value="720x1280">720x1280</option>
+                  <option value="2160x3840">2160x3840</option>
+                </>
+              ) : (
+                <>
+                  <option value="1920x1080">1920x1080</option>
+                  <option value="1280x720">1280x720</option>
+                  <option value="3840x2160">3840x2160</option>
+                </>
+              )}
             </select>
             <div className="col-span-2 flex gap-2">
               <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">
@@ -268,13 +293,35 @@ export default function ScreensPage() {
               className="p-2 border rounded"
             />
             <select
+              value={editingScreen.orientation || 'landscape'}
+              onChange={(e) => {
+                const orientation = e.target.value
+                const resolution = orientation === 'portrait' ? '1080x1920' : '1920x1080'
+                setEditingScreen({...editingScreen, orientation, resolution})
+              }}
+              className="p-2 border rounded"
+            >
+              <option value="landscape">Landscape</option>
+              <option value="portrait">Portrait</option>
+            </select>
+            <select
               value={editingScreen.resolution}
               onChange={(e) => setEditingScreen({...editingScreen, resolution: e.target.value})}
               className="p-2 border rounded"
             >
-              <option value="1920x1080">1920x1080</option>
-              <option value="1280x720">1280x720</option>
-              <option value="3840x2160">3840x2160</option>
+              {(editingScreen.orientation || 'landscape') === 'portrait' ? (
+                <>
+                  <option value="1080x1920">1080x1920</option>
+                  <option value="720x1280">720x1280</option>
+                  <option value="2160x3840">2160x3840</option>
+                </>
+              ) : (
+                <>
+                  <option value="1920x1080">1920x1080</option>
+                  <option value="1280x720">1280x720</option>
+                  <option value="3840x2160">3840x2160</option>
+                </>
+              )}
             </select>
             <div className="col-span-2 flex gap-2">
               <button type="submit" className="bg-green-500 text-white px-4 py-2 rounded">
@@ -335,7 +382,12 @@ export default function ScreensPage() {
               return (
                 <tr key={screen.id} className="border-t">
                   <td className="p-4 font-mono">{screen.screen_id}</td>
-                  <td className="p-4">{screen.name}</td>
+                  <td className="p-4">
+                    {screen.name}
+                    {screen.orientation === 'portrait' && (
+                      <span className="ml-2 bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded">Portrait</span>
+                    )}
+                  </td>
                   <td className="p-4">{screen.location}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">

@@ -10,15 +10,16 @@ export async function PUT(
     const { screenId } = await params
     
     const result = await pool.query(`
-      UPDATE screens 
-      SET name = $1, location = $2, resolution = $3, refresh_interval = $4
-      WHERE screen_id = $5
+      UPDATE screens
+      SET name = $1, location = $2, resolution = $3, refresh_interval = $4, orientation = $5
+      WHERE screen_id = $6
       RETURNING *
     `, [
       body.name,
       body.location || null,
       body.resolution || '1920x1080',
       body.refreshInterval || 30,
+      body.orientation || 'landscape',
       screenId
     ])
     

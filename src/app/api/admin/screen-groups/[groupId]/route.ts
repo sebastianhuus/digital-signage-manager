@@ -19,11 +19,8 @@ export async function GET(
               'name', s.name,
               'location', s.location,
               'resolution', s.resolution,
-              'last_heartbeat', (
-                SELECT timestamp FROM heartbeats
-                WHERE screen_id = s.screen_id
-                ORDER BY timestamp DESC LIMIT 1
-              )
+              'orientation', s.orientation,
+              'last_heartbeat', h.timestamp
             ) ORDER BY sgm.position
           ) FILTER (WHERE sgm.screen_id IS NOT NULL),
           '[]'
@@ -31,6 +28,11 @@ export async function GET(
       FROM screen_groups sg
       LEFT JOIN screen_group_members sgm ON sg.group_id = sgm.group_id
       LEFT JOIN screens s ON sgm.screen_id = s.screen_id
+      LEFT JOIN LATERAL (
+        SELECT timestamp FROM heartbeats
+        WHERE screen_id = s.screen_id
+        ORDER BY timestamp DESC LIMIT 1
+      ) h ON true
       WHERE sg.group_id = $1
       GROUP BY sg.id, sg.group_id, sg.name, sg.layout, sg.description, sg.created_at, sg.updated_at
     `, [groupId])

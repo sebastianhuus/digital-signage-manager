@@ -14,6 +14,7 @@ export async function GET() {
               'name', s.name,
               'location', s.location,
               'resolution', s.resolution,
+              'orientation', s.orientation,
               'last_heartbeat', (
                 SELECT timestamp FROM heartbeats
                 WHERE screen_id = s.screen_id
