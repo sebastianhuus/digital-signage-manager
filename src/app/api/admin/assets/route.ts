@@ -1,6 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
 import { put } from '@vercel/blob'
+import sharp from 'sharp'
+
+const MAX_DIMENSION_LONG = 1920
+const MAX_DIMENSION_SHORT = 1080
+
+async function optimizeImage(file: File): Promise<{ buffer: Buffer; filename: string; size: number }> {
+  const arrayBuffer = await file.arrayBuffer()
+  const buffer = Buffer.from(arrayBuffer)
+
+  const metadata = await sharp(buffer).metadata()
+  if (!metadata.width || !metadata.height) {
+    throw new Error('Could not determine image dimensions')
+  }
+
+  const isLandscape = metadata.width >= metadata.height
+  const maxWidth = isLandscape ? MAX_DIMENSION_LONG : MAX_DIMENSION_SHORT
+  const maxHeight = isLandscape ? MAX_DIMENSION_SHORT : MAX_DIMENSION_LONG
+
+  const needsResize = metadata.width > maxWidth || metadata.height > maxHeight
+
+  const optimized = await sharp(buffer)
+    .resize(needsResize ? { width: maxWidth, height: maxHeight, fit: 'inside', withoutEnlargement: true } : undefined)
+    .jpeg({ quality: 80 })
+    .toBuffer()
+
+  const filename = file.name.replace(/\.[^.]+$/, '.jpg')
+
+  return { buffer: optimized, filename, size: optimized.length }
+}
 
 export async function GET() {
   try {
@@ -25,17 +54,34 @@ export async function POST(request: NextRequest) {
 
     console.log(`File details: name=${file.name}, type=${file.type}, size=${file.size}`)
 
+    const isImage = file.type.startsWith('image/')
+    let uploadData: { buffer: Buffer; filename: string; size: number } | null = null
+
+    if (isImage) {
+      console.log('Optimizing image...')
+      uploadData = await optimizeImage(file)
+      console.log(`Optimized: ${file.size} -> ${uploadData.size} bytes (${Math.round((1 - uploadData.size / file.size) * 100)}% reduction)`)
+    }
+
     // Upload to Vercel Blob
     console.log('Uploading to Vercel Blob...')
-    const blob = await put(file.name, file, {
-      access: 'public',
-      addRandomSuffix: true,
-    })
+    const blob = await put(
+      uploadData?.filename ?? file.name,
+      uploadData?.buffer ?? file,
+      {
+        access: 'public',
+        addRandomSuffix: true,
+        contentType: uploadData ? 'image/jpeg' : file.type,
+      }
+    )
     console.log(`Blob uploaded: ${blob.url}`)
 
     // Generate short unique asset ID
     const assetId = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
     console.log(`Generated asset ID: ${assetId}`)
+
+    const finalFilename = uploadData?.filename ?? file.name
+    const finalSize = uploadData?.size ?? file.size
 
     // Save to database
     console.log('Saving to database...')
@@ -45,10 +91,10 @@ export async function POST(request: NextRequest) {
       RETURNING *
     `, [
       assetId,
-      file.name,
-      file.name, // Use filename as display name
-      file.type.startsWith('image/') ? 'image' : 'video',
-      file.size,
+      finalFilename,
+      file.name, // Keep original name as display name
+      isImage ? 'image' : 'video',
+      finalSize,
       blob.url
     ])
 
