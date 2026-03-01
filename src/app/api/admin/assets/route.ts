@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     console.log(`File details: name=${file.name}, type=${file.type}, size=${file.size}`)
 
     const isImage = file.type.startsWith('image/')
-    let uploadData: { buffer: Buffer; filename: string; size: number } | null = null
+    let uploadData: { buffer: Buffer; filename: string; contentType: string; size: number } | null = null
 
     if (isImage) {
       console.log('Optimizing image...')
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       {
         access: 'public',
         addRandomSuffix: true,
-        contentType: uploadData ? 'image/jpeg' : file.type,
+        contentType: uploadData?.contentType ?? file.type,
       }
     )
     console.log(`Blob uploaded: ${blob.url}`)

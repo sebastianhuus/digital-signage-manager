@@ -18,21 +18,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const limitParam = new URL(request.url).searchParams.get('limit')
+  const url = new URL(request.url)
+  const limitParam = url.searchParams.get('limit')
   const limit = limitParam ? parseInt(limitParam, 10) : null
+  const dryRun = url.searchParams.get('dry') === 'true'
 
   try {
-    let query = `SELECT asset_id, filename, url, size FROM assets WHERE type = 'image' ORDER BY created_at ASC`
+    let query = `SELECT asset_id, filename, url, size FROM assets WHERE type = 'image' AND filename NOT LIKE '%.gif' ORDER BY created_at ASC`
     if (limit && limit > 0) {
       query += ` LIMIT ${limit}`
     }
     const { rows: assets } = await pool.query(query)
 
-    const results = { optimized: 0, failed: 0, skipped: 0, errors: [] as string[] }
+    const results = {
+      dryRun,
+      wouldOptimize: 0,
+      wouldSkip: 0,
+      optimized: 0,
+      failed: 0,
+      skipped: 0,
+      assets: [] as { asset_id: string; filename: string; originalDimensions: string; optimizedDimensions?: string; originalSize: number; optimizedSize?: number; reduction?: string; status: string }[],
+      errors: [] as string[],
+    }
 
     for (const asset of assets) {
       try {
-        console.log(`[migrate-optimize-images] Processing ${asset.asset_id} (${asset.filename})`)
+        console.log(`[migrate-optimize-images] ${dryRun ? '(dry run) ' : ''}Processing ${asset.asset_id} (${asset.filename})`)
 
         const response = await fetch(asset.url)
         if (!response.ok) {
@@ -41,19 +52,34 @@ export async function POST(request: NextRequest) {
         const arrayBuffer = await response.arrayBuffer()
         const originalBuffer = Buffer.from(arrayBuffer)
 
-        const { buffer: optimized, filename, size } = await optimizeImageBuffer(originalBuffer, asset.filename)
+        const { buffer: optimized, filename, contentType, size, originalWidth, originalHeight, optimizedWidth, optimizedHeight } = await optimizeImageBuffer(originalBuffer, asset.filename)
+        const originalDimensions = `${originalWidth}x${originalHeight}`
+        const optimizedDimensions = `${optimizedWidth}x${optimizedHeight}`
 
         // Skip if already optimized (same size or larger after re-encode)
         if (size >= asset.size) {
-          console.log(`[migrate-optimize-images] Skipped ${asset.asset_id} — already optimal (${asset.size} -> ${size})`)
-          results.skipped++
+          console.log(`[migrate-optimize-images] Skipped ${asset.asset_id} — already optimal (${originalDimensions}, ${asset.size} -> ${size})`)
+          if (dryRun) {
+            results.wouldSkip++
+            results.assets.push({ asset_id: asset.asset_id, filename: asset.filename, originalDimensions, optimizedDimensions, originalSize: asset.size, optimizedSize: size, status: 'skip' })
+          } else {
+            results.skipped++
+          }
+          continue
+        }
+
+        if (dryRun) {
+          const reduction = `${Math.round((1 - size / asset.size) * 100)}%`
+          console.log(`[migrate-optimize-images] (dry run) Would optimize ${asset.asset_id}: ${originalDimensions} -> ${optimizedDimensions}, ${asset.size} -> ${size} bytes (${reduction} reduction)`)
+          results.wouldOptimize++
+          results.assets.push({ asset_id: asset.asset_id, filename: asset.filename, originalDimensions, optimizedDimensions, originalSize: asset.size, optimizedSize: size, reduction, status: 'optimize' })
           continue
         }
 
         const blob = await put(filename, optimized, {
           access: 'public',
           addRandomSuffix: true,
-          contentType: 'image/jpeg',
+          contentType,
         })
 
         await pool.query(
