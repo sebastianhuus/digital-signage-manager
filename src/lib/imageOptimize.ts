@@ -59,10 +59,10 @@ export async function optimizeImageBuffer(
   } else {
     optimized = await sharp(buffer)
       .resize(needsResize ? { width: maxWidth, height: maxHeight, fit: 'inside', withoutEnlargement: true } : undefined)
-      .jpeg({ quality: 80 })
+      .webp({ quality: 90 })
       .toBuffer()
-    contentType = 'image/jpeg'
-    optimizedFilename = filename.replace(/\.[^.]+$/, '.jpg')
+    contentType = 'image/webp'
+    optimizedFilename = filename.replace(/\.[^.]+$/, '.webp')
   }
 
   const optimizedMeta = await sharp(optimized, isGif ? { animated: true } : undefined).metadata()
