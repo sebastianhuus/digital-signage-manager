@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession, signOut } from "next-auth/react"
+import { useSession } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
 import PageContainer from "@/components/PageContainer"
@@ -36,15 +36,7 @@ export default function Home() {
 
   return (
     <PageContainer>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Signage Manager</h1>
-        <button 
-          onClick={() => signOut()} 
-          className="bg-red-500 text-white px-4 py-2 rounded"
-        >
-          Sign Out
-        </button>
-      </div>
+      <h1 className="text-3xl font-bold mb-8">Dashboard</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div
           onClick={() => router.push('/screens')}

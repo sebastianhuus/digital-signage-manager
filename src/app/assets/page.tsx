@@ -169,15 +169,7 @@ export default function AssetsPage() {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Assets Library</h1>
-          <button 
-            onClick={() => router.push('/')}
-            className="text-blue-500 hover:underline"
-          >
-            ← Home
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold">Assets Library</h1>
         <div className="flex gap-2">
           <label className="bg-blue-500 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-600">
             {uploading ? 'Uploading...' : 'Upload File'}

@@ -343,20 +343,12 @@ export default function PresetEditPage({ params }: { params: Promise<{ presetId:
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-bold">Edit Preset: {preset?.name}</h1>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => router.push('/')}
-              className="text-blue-500 hover:underline"
-            >
-              ← Home
-            </button>
-            <button 
-              onClick={() => router.push('/presets')}
-              className="text-blue-500 hover:underline"
-            >
-              ← Back to Presets
-            </button>
-          </div>
+          <button
+            onClick={() => router.push('/presets')}
+            className="text-blue-500 hover:underline"
+          >
+            ← Back to Presets
+          </button>
         </div>
         <button 
           onClick={() => setShowAddForm(true)}

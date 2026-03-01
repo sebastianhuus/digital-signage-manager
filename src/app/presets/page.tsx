@@ -135,15 +135,7 @@ export default function PresetsPage() {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Playlist Presets</h1>
-          <button 
-            onClick={() => router.push('/')}
-            className="text-blue-500 hover:underline"
-          >
-            ← Home
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold">Playlist Presets</h1>
         <button 
           onClick={() => setShowCreateForm(true)}
           className="bg-blue-500 text-white px-4 py-2 rounded"
