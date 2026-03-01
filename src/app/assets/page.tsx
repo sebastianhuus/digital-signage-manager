@@ -22,6 +22,7 @@ export default function AssetsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [assets, setAssets] = useState<Asset[]>([])
+  const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [editingAsset, setEditingAsset] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
@@ -46,6 +47,8 @@ export default function AssetsPage() {
       setAssets(data)
     } catch (error) {
       console.error('Failed to fetch assets:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -280,9 +283,13 @@ export default function AssetsPage() {
         ))}
       </div>
 
-      {assets.length === 0 && (
+      {loading ? (
         <div className="text-center py-16 text-gray-500">
-          No assets uploaded yet. Click "Upload File" to add images or videos.
+          Loading assets...
+        </div>
+      ) : assets.length === 0 && (
+        <div className="text-center py-16 text-gray-500">
+          No assets uploaded yet. Click &quot;Upload File&quot; to add images or videos.
         </div>
       )}
     </PageContainer>
