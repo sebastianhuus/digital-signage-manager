@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   const dryRun = url.searchParams.get('dry') === 'true'
 
   try {
-    let query = `SELECT asset_id, filename, url, size FROM assets WHERE type = 'image' AND filename NOT LIKE '%.gif' ORDER BY created_at ASC`
+    let query = `SELECT a.asset_id, a.filename, a.url, a.size FROM assets a WHERE a.type = 'image' AND a.filename NOT LIKE '%.gif' AND NOT EXISTS (SELECT 1 FROM split_assets sa WHERE sa.original_asset_id = a.asset_id) ORDER BY a.created_at ASC`
     if (limit && limit > 0) {
       query += ` LIMIT ${limit}`
     }
