@@ -404,20 +404,12 @@ export default function PlaylistPage({ params }: { params: Promise<{ screenId: s
               <span className="ml-3 bg-purple-100 text-purple-700 text-sm px-2 py-1 rounded align-middle">Portrait</span>
             )}
           </h1>
-          <div className="flex gap-4">
-            <button 
-              onClick={() => router.push('/')}
-              className="text-blue-500 hover:underline"
-            >
-              ← Home
-            </button>
-            <button 
-              onClick={() => router.push('/screens')}
-              className="text-blue-500 hover:underline"
-            >
-              ← Back to Screens
-            </button>
-          </div>
+          <button
+            onClick={() => router.push('/screens')}
+            className="text-blue-500 hover:underline"
+          >
+            ← Back to Screens
+          </button>
         </div>
         <div className="flex gap-2">
           <button 

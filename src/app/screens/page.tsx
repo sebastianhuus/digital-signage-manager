@@ -179,15 +179,7 @@ export default function ScreensPage() {
   return (
     <PageContainer>
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Screens Management</h1>
-          <button 
-            onClick={() => router.push('/')}
-            className="text-blue-500 hover:underline"
-          >
-            ← Home
-          </button>
-        </div>
+        <h1 className="text-3xl font-bold">Screens Management</h1>
         <button 
           onClick={() => setShowAddForm(true)}
           className="bg-blue-500 text-white px-4 py-2 rounded"
