@@ -90,14 +90,64 @@ class SignageClient:
                     print(f"HTTP: {format % args}")
                 pass
         
+        HTTPServer.allow_reuse_address = True
         self.http_server = HTTPServer(('localhost', 8000), CustomHandler)
         self.http_server.content_info = self.current_content_info
-        
+
         # Start server in background thread
         server_thread = threading.Thread(target=self.http_server.serve_forever, daemon=True)
         server_thread.start()
         print("Local HTTP server started on http://localhost:8000")
+
+        # Write initial display page and launch browser immediately
+        self._write_display_html()
+        self.launch_browser("http://localhost:8000/display.html")
+        self.browser_launched = True
         
+    def _write_display_html(self):
+        """Write the display HTML file to the cache directory"""
+        html_content = """<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
+        #content { width: 100vw; height: 100vh; object-fit: contain; display: none; }
+        #waiting { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; color: #333; font-family: sans-serif; font-size: 24px; }
+    </style>
+</head>
+<body>
+    <div id="waiting">Waiting for content...</div>
+    <img id="content" />
+
+    <script>
+        let lastAssetId = '';
+        const contentEl = document.getElementById('content');
+        const waitingEl = document.getElementById('waiting');
+
+        function checkForUpdates() {
+            fetch('http://localhost:8000/content-info.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.assetId && data.assetId !== lastAssetId) {
+                        lastAssetId = data.assetId;
+                        contentEl.src = data.path;
+                        contentEl.style.display = 'block';
+                        waitingEl.style.display = 'none';
+                    }
+                })
+                .catch(err => console.error('Update check failed:', err));
+        }
+
+        checkForUpdates();
+        setInterval(checkForUpdates, 1000);
+    </script>
+</body>
+</html>
+"""
+        html_path = CACHE_DIR / "display.html"
+        with open(html_path, 'w') as f:
+            f.write(html_content)
+
     def make_api_request(self, endpoint):
         """Make authenticated API request"""
         headers = {"x-api-key": API_KEY}
@@ -235,54 +285,6 @@ class SignageClient:
         }
         self.http_server.content_info = self.current_content_info
             
-        # Create HTML with proper crossfade using layered elements
-        html_content = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
-                #content { width: 100vw; height: 100vh; object-fit: contain; }
-            </style>
-        </head>
-        <body>
-            <img id="content" />
-            
-            <script>
-                let lastAssetId = '';
-                const contentEl = document.getElementById('content');
-                
-                function checkForUpdates() {
-                    fetch('http://localhost:8000/content-info.json')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.assetId !== lastAssetId) {
-                                lastAssetId = data.assetId;
-                                contentEl.src = data.path;
-                            }
-                        })
-                        .catch(err => console.error('Update check failed:', err));
-                }
-                
-                checkForUpdates();
-                setInterval(checkForUpdates, 1000);
-            </script>
-        </body>
-        </html>
-        """
-        
-        # Write HTML file only once
-        html_path = CACHE_DIR / "display.html"
-        # Force recreation to update CSS
-        html_path.unlink(missing_ok=True)
-        with open(html_path, 'w') as f:
-            f.write(html_content)
-            
-        # Only launch browser once
-        if not self.browser_launched:
-            self.launch_browser("http://localhost:8000/display.html")
-            self.browser_launched = True
-        
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
     def launch_browser(self, url):
