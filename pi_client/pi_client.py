@@ -10,6 +10,7 @@ import json
 import requests
 import subprocess
 import threading
+from datetime import datetime, time as dt_time
 from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import socketserver
@@ -38,11 +39,39 @@ SCREEN_ID = os.getenv("SIGNAGE_SCREEN_ID", "tv-1")
 CACHE_DIR = Path.home() / "signage_cache"
 POLL_INTERVAL = int(os.getenv("SIGNAGE_POLL_INTERVAL", "30"))  # seconds
 HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_HEARTBEAT_INTERVAL", "60"))  # seconds
+INACTIVE_POLL_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_POLL_INTERVAL", "300"))  # seconds
+INACTIVE_HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL", "300"))  # seconds
+ACTIVE_START = os.getenv("SIGNAGE_ACTIVE_START", "07:00")
+ACTIVE_END = os.getenv("SIGNAGE_ACTIVE_END", "22:00")
+
+def _parse_time(s):
+    h, m = s.split(":")
+    return dt_time(int(h), int(m))
+
+ACTIVE_START_TIME = _parse_time(ACTIVE_START)
+ACTIVE_END_TIME = _parse_time(ACTIVE_END)
+
+def is_active_hours():
+    now = datetime.now().time()
+    if ACTIVE_START_TIME <= ACTIVE_END_TIME:
+        return ACTIVE_START_TIME <= now < ACTIVE_END_TIME
+    else:
+        # Wraps midnight, e.g. 22:00 - 06:00
+        return now >= ACTIVE_START_TIME or now < ACTIVE_END_TIME
+
+def get_poll_interval():
+    return POLL_INTERVAL if is_active_hours() else INACTIVE_POLL_INTERVAL
+
+def get_heartbeat_interval():
+    return HEARTBEAT_INTERVAL if is_active_hours() else INACTIVE_HEARTBEAT_INTERVAL
 
 print(f"Configuration loaded:")
 print(f"  API_BASE_URL: {API_BASE_URL}")
 print(f"  SCREEN_ID: {SCREEN_ID}")
 print(f"  API_KEY: {API_KEY[:10]}...")  # Only show first 10 chars
+print(f"  Active hours: {ACTIVE_START} - {ACTIVE_END}")
+print(f"  Active intervals:   poll={POLL_INTERVAL}s, heartbeat={HEARTBEAT_INTERVAL}s")
+print(f"  Inactive intervals: poll={INACTIVE_POLL_INTERVAL}s, heartbeat={INACTIVE_HEARTBEAT_INTERVAL}s")
 
 class SignageClient:
     def __init__(self):
@@ -287,11 +316,35 @@ class SignageClient:
             
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
+    def _is_display_ready(self):
+        """Check if the X display is available"""
+        try:
+            result = subprocess.run(
+                ['xdpyinfo'],
+                env={**os.environ, 'DISPLAY': ':0'},
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
     def launch_browser(self, url):
-        """Launch browser in fullscreen (only called once)"""
-        # Set display for Pi
+        """Launch browser in fullscreen, retrying until display is ready"""
         os.environ['DISPLAY'] = ':0'
-        
+
+        # Wait for display to be ready (up to 60 seconds)
+        max_retries = 12
+        for attempt in range(max_retries):
+            if self._is_display_ready():
+                print(f"Display :0 is ready (attempt {attempt + 1})")
+                break
+            print(f"Display :0 not ready, retrying in 5s (attempt {attempt + 1}/{max_retries})...")
+            time.sleep(5)
+        else:
+            print("Warning: Display :0 never became ready, attempting browser launch anyway")
+
         # Hide taskbar and cursor
         try:
             subprocess.run(['pcmanfm', '--desktop-off'], check=False)
@@ -299,7 +352,7 @@ class SignageClient:
             subprocess.run(['unclutter', '-idle', '0.5', '-root'], check=False)
         except:
             pass
-        
+
         browsers_to_try = [
             # Pi/Linux - try multiple approaches (chromium is the correct command on newer Pi OS)
             ['chromium', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
@@ -321,20 +374,25 @@ class SignageClient:
             # Firefox as fallback (no kiosk, but fullscreen)
             ['firefox', '--kiosk']
         ]
-        
+
         for browser_cmd in browsers_to_try:
             try:
-                # Launch browser as background process (non-blocking)
                 self.browser_process = subprocess.Popen(
                     browser_cmd + [url],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                print(f"Browser launched: {browser_cmd[0]} (PID: {self.browser_process.pid})")
-                return
+                # Wait briefly and check if the process survived
+                time.sleep(2)
+                if self.browser_process.poll() is None:
+                    print(f"Browser launched: {browser_cmd[0]} (PID: {self.browser_process.pid})")
+                    return
+                else:
+                    print(f"Browser {browser_cmd[0]} exited immediately, trying next...")
+                    continue
             except FileNotFoundError:
                 continue
-                
+
         print("No suitable browser found.")
         print("Windows: Edge should work automatically, or install Chrome")
         print("Pi: sudo apt install chromium-browser")
@@ -375,32 +433,40 @@ class SignageClient:
         """Background thread for sending heartbeats"""
         while True:
             self.send_heartbeat()
-            time.sleep(HEARTBEAT_INTERVAL)
+            time.sleep(get_heartbeat_interval())
             
     def run(self):
         """Main client loop"""
         print(f"Starting Signage Client for {SCREEN_ID}")
         print(f"API: {API_BASE_URL}")
-        
+
         self.start_time = time.time()
-        
+        self._last_active_state = None
+
         # Start heartbeat thread
         heartbeat_thread = threading.Thread(target=self.heartbeat_loop, daemon=True)
         heartbeat_thread.start()
-        
+
         # Initial playlist fetch
         self.update_playlist()
-        
+
         # Main display loop
         last_displayed_asset = None
-        
+
         while True:
             try:
+                active = is_active_hours()
+                if active != self._last_active_state:
+                    mode = "active" if active else "inactive"
+                    interval = get_poll_interval()
+                    print(f"Switching to {mode} mode (poll every {interval}s)")
+                    self._last_active_state = active
+
                 # Check for playlist updates
                 self.update_playlist()
-                
+
                 # Check for content switching more frequently (every 1 second)
-                for _ in range(POLL_INTERVAL):
+                for _ in range(get_poll_interval()):
                     # Get current content
                     current_item = self.get_current_item()
                     if current_item:
