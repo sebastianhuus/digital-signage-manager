@@ -2,6 +2,7 @@
 
 import { useSession, signOut } from "next-auth/react"
 import { usePathname, useRouter } from "next/navigation"
+import WhatsNew from "./WhatsNew"
 
 const NAV_ITEMS = [
   { href: '/screens', label: 'Screens' },
@@ -46,12 +47,15 @@ export default function Navbar() {
             })}
           </div>
         </div>
-        <button
-          onClick={() => signOut()}
-          className="text-sm text-gray-500 hover:text-red-600 transition-colors"
-        >
-          Sign Out
-        </button>
+        <div className="flex items-center gap-3">
+          <WhatsNew />
+          <button
+            onClick={() => signOut()}
+            className="text-sm text-gray-500 hover:text-red-600 transition-colors"
+          >
+            Sign Out
+          </button>
+        </div>
       </div>
     </nav>
   )
