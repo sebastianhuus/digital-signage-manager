@@ -69,6 +69,26 @@ echo "Enter the heartbeat interval in seconds (default: 60)"
 read -p "Heartbeat Interval [60]: " HEARTBEAT_INTERVAL
 HEARTBEAT_INTERVAL=${HEARTBEAT_INTERVAL:-60}
 
+echo ""
+echo "Enter the inactive poll interval in seconds (default: 300)"
+read -p "Inactive Poll Interval [300]: " INACTIVE_POLL_INTERVAL
+INACTIVE_POLL_INTERVAL=${INACTIVE_POLL_INTERVAL:-300}
+
+echo ""
+echo "Enter the inactive heartbeat interval in seconds (default: 300)"
+read -p "Inactive Heartbeat Interval [300]: " INACTIVE_HEARTBEAT_INTERVAL
+INACTIVE_HEARTBEAT_INTERVAL=${INACTIVE_HEARTBEAT_INTERVAL:-300}
+
+echo ""
+echo "Enter active hours start time in 24h format (default: 07:00)"
+read -p "Active Start [07:00]: " ACTIVE_START
+ACTIVE_START=${ACTIVE_START:-07:00}
+
+echo ""
+echo "Enter active hours end time in 24h format (default: 22:00)"
+read -p "Active End [22:00]: " ACTIVE_END
+ACTIVE_END=${ACTIVE_END:-22:00}
+
 # Show summary
 echo ""
 echo "======================================="
@@ -79,6 +99,9 @@ echo "API Key:             ${API_KEY:0:8}...${API_KEY: -4}"
 echo "Screen ID:           $SCREEN_ID"
 echo "Poll Interval:       $POLL_INTERVAL seconds"
 echo "Heartbeat Interval:  $HEARTBEAT_INTERVAL seconds"
+echo "Inactive Poll:       $INACTIVE_POLL_INTERVAL seconds"
+echo "Inactive Heartbeat:  $INACTIVE_HEARTBEAT_INTERVAL seconds"
+echo "Active Hours:        $ACTIVE_START - $ACTIVE_END"
 echo ""
 read -p "Save this configuration? (y/n): " CONFIRM
 
@@ -100,6 +123,12 @@ SIGNAGE_SCREEN_ID=$SCREEN_ID
 # Polling Configuration
 SIGNAGE_POLL_INTERVAL=$POLL_INTERVAL
 SIGNAGE_HEARTBEAT_INTERVAL=$HEARTBEAT_INTERVAL
+SIGNAGE_INACTIVE_POLL_INTERVAL=$INACTIVE_POLL_INTERVAL
+SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL=$INACTIVE_HEARTBEAT_INTERVAL
+
+# Active Hours (uses Pi local time)
+SIGNAGE_ACTIVE_START=$ACTIVE_START
+SIGNAGE_ACTIVE_END=$ACTIVE_END
 EOF
 
 echo ""

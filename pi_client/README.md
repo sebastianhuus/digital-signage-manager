@@ -34,6 +34,8 @@ The script will prompt you for:
 - Screen ID
 - Poll interval (optional, defaults to 30 seconds)
 - Heartbeat interval (optional, defaults to 60 seconds)
+- Inactive poll/heartbeat intervals (optional, defaults to 300 seconds)
+- Active hours window (optional, defaults to 07:00 - 22:00)
 
 You typically get the API URL, API Key, and Screen ID from the `/screens` page after adding your new screen.
 
@@ -105,10 +107,11 @@ sudo systemctl start signage.service
 
 ## Features
 
-- **Auto-polling**: Checks for playlist updates every 30 seconds
+- **Auto-polling**: Checks for playlist updates every 30 seconds (active hours) or 300 seconds (inactive hours)
+- **Active hours scheduling**: Configurable time window to reduce polling during off-hours
 - **Local caching**: Downloads and caches media files
 - **Fullscreen display**: Uses Chromium in kiosk mode
-- **Heartbeat monitoring**: Sends status updates every 60 seconds
+- **Heartbeat monitoring**: Sends status updates every 60 seconds (active) or 300 seconds (inactive)
 - **Auto-recovery**: Restarts on errors
 - **Temperature monitoring**: Reports Pi CPU temperature
 
@@ -121,6 +124,10 @@ SIGNAGE_API_KEY=your-api-key-here
 SIGNAGE_SCREEN_ID=tv-1
 SIGNAGE_POLL_INTERVAL=30
 SIGNAGE_HEARTBEAT_INTERVAL=60
+SIGNAGE_INACTIVE_POLL_INTERVAL=300
+SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL=300
+SIGNAGE_ACTIVE_START=07:00
+SIGNAGE_ACTIVE_END=22:00
 ```
 
 ## Troubleshooting
