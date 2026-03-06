@@ -316,11 +316,35 @@ class SignageClient:
             
         print(f"Content updated: {filename} (Asset: {asset_id})")
         
+    def _is_display_ready(self):
+        """Check if the X display is available"""
+        try:
+            result = subprocess.run(
+                ['xdpyinfo'],
+                env={**os.environ, 'DISPLAY': ':0'},
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
+
     def launch_browser(self, url):
-        """Launch browser in fullscreen (only called once)"""
-        # Set display for Pi
+        """Launch browser in fullscreen, retrying until display is ready"""
         os.environ['DISPLAY'] = ':0'
-        
+
+        # Wait for display to be ready (up to 60 seconds)
+        max_retries = 12
+        for attempt in range(max_retries):
+            if self._is_display_ready():
+                print(f"Display :0 is ready (attempt {attempt + 1})")
+                break
+            print(f"Display :0 not ready, retrying in 5s (attempt {attempt + 1}/{max_retries})...")
+            time.sleep(5)
+        else:
+            print("Warning: Display :0 never became ready, attempting browser launch anyway")
+
         # Hide taskbar and cursor
         try:
             subprocess.run(['pcmanfm', '--desktop-off'], check=False)
@@ -328,7 +352,7 @@ class SignageClient:
             subprocess.run(['unclutter', '-idle', '0.5', '-root'], check=False)
         except:
             pass
-        
+
         browsers_to_try = [
             # Pi/Linux - try multiple approaches (chromium is the correct command on newer Pi OS)
             ['chromium', '--kiosk', '--incognito', '--noerrdialogs', '--disable-infobars', '--user-data-dir=/tmp/signage-chrome'],
@@ -350,20 +374,25 @@ class SignageClient:
             # Firefox as fallback (no kiosk, but fullscreen)
             ['firefox', '--kiosk']
         ]
-        
+
         for browser_cmd in browsers_to_try:
             try:
-                # Launch browser as background process (non-blocking)
                 self.browser_process = subprocess.Popen(
                     browser_cmd + [url],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL
                 )
-                print(f"Browser launched: {browser_cmd[0]} (PID: {self.browser_process.pid})")
-                return
+                # Wait briefly and check if the process survived
+                time.sleep(2)
+                if self.browser_process.poll() is None:
+                    print(f"Browser launched: {browser_cmd[0]} (PID: {self.browser_process.pid})")
+                    return
+                else:
+                    print(f"Browser {browser_cmd[0]} exited immediately, trying next...")
+                    continue
             except FileNotFoundError:
                 continue
-                
+
         print("No suitable browser found.")
         print("Windows: Edge should work automatically, or install Chrome")
         print("Pi: sudo apt install chromium-browser")

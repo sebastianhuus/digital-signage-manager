@@ -51,12 +51,14 @@ fi
 # Create service file content
 SERVICE_CONTENT="[Unit]
 Description=Signage Manager Client
-After=network.target
+After=network.target graphical-session.target
+Wants=graphical-session.target
 
 [Service]
 Type=simple
 User=$USERNAME
 WorkingDirectory=$WORKING_DIR
+ExecStartPre=/bin/sleep 10
 ExecStart=/usr/bin/python3 $WORKING_DIR/pi_client.py
 Restart=always
 RestartSec=10
