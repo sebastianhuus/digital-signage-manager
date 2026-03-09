@@ -82,9 +82,25 @@ class SignageClient:
         self.browser_launched = False  # Simple flag instead of process checking
         self.http_server = None
         self.current_content_info = {}
+        self.orientation = self.fetch_orientation()
         self.setup_cache_dir()
         self.start_http_server()
         
+    def fetch_orientation(self):
+        """Fetch screen orientation from server config"""
+        headers = {"x-api-key": API_KEY}
+        try:
+            url = f"{API_BASE_URL}/api/screens/{SCREEN_ID}/config"
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            config = response.json()
+            orientation = config.get('orientation', 'landscape')
+            print(f"Screen orientation: {orientation}")
+            return orientation
+        except Exception as e:
+            print(f"Failed to fetch orientation, defaulting to landscape: {e}")
+            return 'landscape'
+
     def setup_cache_dir(self):
         """Create cache directory if it doesn't exist"""
         CACHE_DIR.mkdir(exist_ok=True)
@@ -98,6 +114,17 @@ class SignageClient:
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(CACHE_DIR), **kwargs)
                 
+            def do_POST(self):
+                if self.path == '/viewport':
+                    length = int(self.headers.get('Content-Length', 0))
+                    body = self.rfile.read(length).decode()
+                    print(f"[VIEWPORT] {body}")
+                    self.send_response(200)
+                    self.end_headers()
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
             def do_GET(self):
                 if self.path == '/content-info.json':
                     self.send_response(200)
@@ -135,13 +162,20 @@ class SignageClient:
         
     def _write_display_html(self):
         """Write the display HTML file to the cache directory"""
-        html_content = """<!DOCTYPE html>
+        is_portrait = self.orientation == 'portrait'
+        portrait_css = """
+        #content { width: 100vh; height: 100vw; object-fit: cover; display: none; transform: rotate(90deg); transform-origin: center center; position: absolute; top: 50%; left: 50%; translate: -50% -50%; }
+        #waiting { width: 100vh; height: 100vw; display: flex; align-items: center; justify-content: center; color: #333; font-family: sans-serif; font-size: 24px; transform: rotate(90deg); }
+""" if is_portrait else """
+        #content { width: 100vw; height: 100vh; object-fit: cover; display: none; }
+        #waiting { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; color: #333; font-family: sans-serif; font-size: 24px; }
+"""
+        html_content = f"""<!DOCTYPE html>
 <html>
 <head>
     <style>
-        body { margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }
-        #content { width: 100vw; height: 100vh; object-fit: contain; display: none; }
-        #waiting { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; color: #333; font-family: sans-serif; font-size: 24px; }
+        body {{ margin: 0; padding: 0; background: black; overflow: hidden; cursor: none; }}
+        {portrait_css}
     </style>
 </head>
 <body>
@@ -153,19 +187,24 @@ class SignageClient:
         const contentEl = document.getElementById('content');
         const waitingEl = document.getElementById('waiting');
 
-        function checkForUpdates() {
+        function checkForUpdates() {{
             fetch('http://localhost:8000/content-info.json')
                 .then(response => response.json())
-                .then(data => {
-                    if (data.assetId && data.assetId !== lastAssetId) {
+                .then(data => {{
+                    if (data.assetId && data.assetId !== lastAssetId) {{
                         lastAssetId = data.assetId;
                         contentEl.src = data.path;
                         contentEl.style.display = 'block';
                         waitingEl.style.display = 'none';
-                    }
-                })
+                    }}
+                }})
                 .catch(err => console.error('Update check failed:', err));
-        }
+        }}
+
+        fetch('http://localhost:8000/viewport', {{
+            method: 'POST',
+            body: 'width=' + window.innerWidth + ' height=' + window.innerHeight + ' dpr=' + window.devicePixelRatio
+        }});
 
         checkForUpdates();
         setInterval(checkForUpdates, 1000);
