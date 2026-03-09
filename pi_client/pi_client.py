@@ -86,20 +86,24 @@ class SignageClient:
         self.setup_cache_dir()
         self.start_http_server()
         
-    def fetch_orientation(self):
-        """Fetch screen orientation from server config"""
+    def fetch_orientation(self, max_retries=30, retry_delay=5):
+        """Fetch screen orientation from server config, retrying until network is ready"""
         headers = {"x-api-key": API_KEY}
-        try:
-            url = f"{API_BASE_URL}/api/screens/{SCREEN_ID}/config"
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            config = response.json()
-            orientation = config.get('orientation', 'landscape')
-            print(f"Screen orientation: {orientation}")
-            return orientation
-        except Exception as e:
-            print(f"Failed to fetch orientation, defaulting to landscape: {e}")
-            return 'landscape'
+        for attempt in range(max_retries):
+            try:
+                url = f"{API_BASE_URL}/api/screens/{SCREEN_ID}/config"
+                response = requests.get(url, headers=headers, timeout=10)
+                response.raise_for_status()
+                config = response.json()
+                orientation = config.get('orientation', 'landscape')
+                print(f"Screen orientation: {orientation}")
+                return orientation
+            except Exception as e:
+                print(f"Orientation fetch attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+        print("All orientation fetch attempts failed, defaulting to landscape")
+        return 'landscape'
 
     def setup_cache_dir(self):
         """Create cache directory if it doesn't exist"""
