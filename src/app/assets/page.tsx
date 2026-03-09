@@ -44,7 +44,7 @@ export default function AssetsPage() {
     try {
       const response = await fetch('/api/admin/assets')
       const data = await response.json()
-      setAssets(data)
+      setAssets(Array.isArray(data) ? data : [])
     } catch (error) {
       console.error('Failed to fetch assets:', error)
     } finally {
@@ -68,8 +68,14 @@ export default function AssetsPage() {
         })
 
         if (!response.ok) {
-          const error = await response.json()
-          alert(`Failed to upload ${file.name}: ${error.error}`)
+          let message = `HTTP ${response.status}`
+          try {
+            const error = await response.json()
+            message = [error.error, error.details].filter(Boolean).join(': ')
+          } catch {
+            if (response.status === 413) message = 'File too large for server limit'
+          }
+          alert(`Failed to upload ${file.name}: ${message}`)
         }
       }
       
@@ -77,7 +83,7 @@ export default function AssetsPage() {
       e.target.value = ''
     } catch (error) {
       console.error('Upload failed:', error)
-      alert('Upload failed')
+      alert(`Upload failed: ${error instanceof Error ? error.message : error}`)
     } finally {
       setUploading(false)
     }
