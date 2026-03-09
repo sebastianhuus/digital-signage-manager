@@ -69,6 +69,17 @@ class SignageClient:
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(CACHE_DIR), **kwargs)
                 
+            def do_POST(self):
+                if self.path == '/viewport':
+                    length = int(self.headers.get('Content-Length', 0))
+                    body = self.rfile.read(length).decode()
+                    print(f"[VIEWPORT] {body}")
+                    self.send_response(200)
+                    self.end_headers()
+                else:
+                    self.send_response(404)
+                    self.end_headers()
+
             def do_GET(self):
                 if self.path == '/content-info.json':
                     self.send_response(200)
@@ -137,6 +148,11 @@ class SignageClient:
                 })
                 .catch(err => console.error('Update check failed:', err));
         }
+
+        fetch('http://localhost:8000/viewport', {
+            method: 'POST',
+            body: 'width=' + window.innerWidth + ' height=' + window.innerHeight + ' dpr=' + window.devicePixelRatio
+        });
 
         checkForUpdates();
         setInterval(checkForUpdates, 1000);
