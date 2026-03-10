@@ -58,13 +58,25 @@ export default function AssetsPage() {
 
     setUploading(true)
     try {
-      for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append('file', file)
+      const { upload } = await import('@vercel/blob/client')
 
+      for (const file of Array.from(files)) {
+        // Upload directly to Vercel Blob (bypasses server body size limits)
+        const blob = await upload(file.name, file, {
+          access: 'public',
+          handleUploadUrl: '/api/admin/assets/upload',
+        })
+
+        // Register the asset in the database
         const response = await fetch('/api/admin/assets', {
           method: 'POST',
-          body: formData
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: blob.url,
+            filename: file.name,
+            size: file.size,
+            contentType: file.type,
+          })
         })
 
         if (!response.ok) {
@@ -73,12 +85,12 @@ export default function AssetsPage() {
             const error = await response.json()
             message = [error.error, error.details].filter(Boolean).join(': ')
           } catch {
-            if (response.status === 413) message = 'File too large for server limit'
+            // fall through with default message
           }
           alert(`Failed to upload ${file.name}: ${message}`)
         }
       }
-      
+
       fetchAssets()
       e.target.value = ''
     } catch (error) {

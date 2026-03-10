@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { pool } from '@/lib/db'
-import { put } from '@vercel/blob'
+import { put, del } from '@vercel/blob'
 import { optimizeImageBuffer } from '@/lib/imageOptimize'
 
 export async function GET() {
@@ -13,51 +13,49 @@ export async function GET() {
   }
 }
 
+// Register an asset after client-side upload to Vercel Blob
+// For images: downloads the blob, optimizes to WebP, re-uploads, and deletes the original
 export async function POST(request: NextRequest) {
   try {
-    console.log('Upload request received')
-    const formData = await request.formData()
-    const file = formData.get('file') as File
-    
-    if (!file) {
-      console.log('No file in request')
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 })
+    const { url, filename, size, contentType } = await request.json()
+
+    if (!url || !filename) {
+      return NextResponse.json({ error: 'url and filename are required' }, { status: 400 })
     }
 
-    console.log(`File details: name=${file.name}, type=${file.type}, size=${file.size}`)
-
-    const isImage = file.type.startsWith('image/')
-    let uploadData: { buffer: Buffer; filename: string; contentType: string; size: number } | null = null
-
-    if (isImage) {
-      console.log('Optimizing image...')
-      const arrayBuffer = await file.arrayBuffer()
-      uploadData = await optimizeImageBuffer(Buffer.from(arrayBuffer), file.name)
-      console.log(`Optimized: ${file.size} -> ${uploadData.size} bytes (${Math.round((1 - uploadData.size / file.size) * 100)}% reduction)`)
-    }
-
-    // Upload to Vercel Blob
-    console.log('Uploading to Vercel Blob...')
-    const blob = await put(
-      uploadData?.filename ?? file.name,
-      uploadData?.buffer ?? file,
-      {
-        access: 'public',
-        addRandomSuffix: true,
-        contentType: uploadData?.contentType ?? file.type,
-      }
-    )
-    console.log(`Blob uploaded: ${blob.url}`)
-
-    // Generate short unique asset ID
+    const isImage = contentType?.startsWith('image/')
     const assetId = `asset-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
-    console.log(`Generated asset ID: ${assetId}`)
 
-    const finalFilename = uploadData?.filename ?? file.name
-    const finalSize = uploadData?.size ?? file.size
+    let finalUrl = url
+    let finalFilename = filename
+    let finalSize = size ?? 0
 
-    // Save to database
-    console.log('Saving to database...')
+    // Optimize images: download, convert to WebP, re-upload
+    if (isImage && !filename.toLowerCase().endsWith('.gif')) {
+      try {
+        const response = await fetch(url)
+        const buffer = Buffer.from(await response.arrayBuffer())
+        const optimized = await optimizeImageBuffer(buffer, filename)
+
+        const blob = await put(optimized.filename, optimized.buffer, {
+          access: 'public',
+          addRandomSuffix: true,
+          contentType: optimized.contentType,
+        })
+
+        // Delete the original unoptimized blob
+        await del(url)
+
+        finalUrl = blob.url
+        finalFilename = optimized.filename
+        finalSize = optimized.size
+        console.log(`Optimized ${filename}: ${size} -> ${finalSize} bytes (${Math.round((1 - finalSize / size) * 100)}% reduction)`)
+      } catch (optimizeError) {
+        console.error('Image optimization failed, using original:', optimizeError)
+        // Fall through and use the original upload
+      }
+    }
+
     const result = await pool.query(`
       INSERT INTO assets (asset_id, filename, display_name, type, size, url)
       VALUES ($1, $2, $3, $4, $5, $6)
@@ -65,18 +63,17 @@ export async function POST(request: NextRequest) {
     `, [
       assetId,
       finalFilename,
-      file.name, // Keep original name as display name
+      filename, // Keep original name as display name
       isImage ? 'image' : 'video',
       finalSize,
-      blob.url
+      finalUrl
     ])
 
-    console.log('Upload successful')
     return NextResponse.json(result.rows[0])
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ 
-      error: 'Upload failed', 
+    return NextResponse.json({
+      error: 'Upload failed',
       details: error instanceof Error ? error.message : 'Unknown error'
     }, { status: 500 })
   }
