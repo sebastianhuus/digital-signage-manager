@@ -31,6 +31,11 @@ export async function POST(
       body.uptime,
       body.temperature
     ])
+
+    // Prune old heartbeats for this screen
+    await pool.query(`
+      DELETE FROM heartbeats WHERE screen_id = $1 AND timestamp < NOW() - INTERVAL '48 hours'
+    `, [screenId])
     
     return NextResponse.json({ 
       success: true, 
