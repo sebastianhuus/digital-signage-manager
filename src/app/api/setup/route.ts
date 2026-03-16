@@ -133,6 +133,13 @@ export async function POST(request: NextRequest) {
       );
     `)
 
+    // Create indexes for performance
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_heartbeats_screen_timestamp ON heartbeats(screen_id, timestamp DESC)`)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_screens_api_key ON screens(api_key)`)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_playlists_screen_id ON playlists(screen_id)`)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_split_assets_original ON split_assets(original_asset_id)`)
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_screen_group_members_group_id ON screen_group_members(group_id)`)
+
     // Generate API keys for screens that don't have them
     const { generateApiKey } = await import('@/lib/apiKeys')
     const screensWithoutKeys = await pool.query('SELECT screen_id FROM screens WHERE api_key IS NULL')
