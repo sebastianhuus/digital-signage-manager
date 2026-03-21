@@ -367,6 +367,67 @@ class TestHeartbeatSleepBehavior:
         mock_hb.assert_called_once()
 
 
+class TestAutoUpdateConfig:
+    def test_defaults_to_true(self):
+        mod = _import_pi_client()
+        assert mod.AUTO_UPDATE is True
+
+    def test_explicit_false(self):
+        mod = _import_pi_client(SIGNAGE_AUTO_UPDATE="false")
+        assert mod.AUTO_UPDATE is False
+
+
+class TestCheckForUpdates:
+    def _run(self, mod, client, branch_stdout, pull_stdout, pull_rc=0):
+        branch_result = MagicMock(stdout=branch_stdout, returncode=0)
+        pull_result = MagicMock(stdout=pull_stdout, stderr="", returncode=pull_rc)
+
+        with patch.object(mod.subprocess, "run", side_effect=[branch_result, pull_result]) as mock_run, \
+             patch("builtins.print"):
+            return client.check_for_updates(), mock_run
+
+    def test_pulls_and_detects_changes(self):
+        mod = _import_pi_client()
+        client = _make_client(mod)
+        changed, _ = self._run(mod, client, "main\n", "Updating abc123..def456\n")
+        assert changed is True
+
+    def test_already_up_to_date(self):
+        mod = _import_pi_client()
+        client = _make_client(mod)
+        changed, _ = self._run(mod, client, "main\n", "Already up to date.\n")
+        assert changed is False
+
+    def test_wrong_branch_skips(self):
+        mod = _import_pi_client()
+        client = _make_client(mod)
+        branch_result = MagicMock(stdout="feature-branch\n", returncode=0)
+
+        with patch.object(mod.subprocess, "run", return_value=branch_result) as mock_run, \
+             patch("builtins.print"):
+            changed = client.check_for_updates()
+
+        assert changed is False
+        # Should only call git rev-parse, not git pull
+        assert mock_run.call_count == 1
+
+    def test_pull_failure_returns_false(self):
+        mod = _import_pi_client()
+        client = _make_client(mod)
+        changed, _ = self._run(mod, client, "main\n", "", pull_rc=1)
+        assert changed is False
+
+    def test_exception_returns_false(self):
+        mod = _import_pi_client()
+        client = _make_client(mod)
+
+        with patch.object(mod.subprocess, "run", side_effect=OSError("no git")), \
+             patch("builtins.print"):
+            changed = client.check_for_updates()
+
+        assert changed is False
+
+
 class TestDisplayContent:
     def test_updates_content_info(self, tmp_path):
         mod = _import_pi_client()
