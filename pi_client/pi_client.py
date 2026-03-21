@@ -43,6 +43,7 @@ INACTIVE_POLL_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_POLL_INTERVAL", "300"))
 INACTIVE_HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL", "300"))  # seconds
 ACTIVE_START = os.getenv("SIGNAGE_ACTIVE_START", "07:00")
 ACTIVE_END = os.getenv("SIGNAGE_ACTIVE_END", "22:00")
+SLEEP_WHEN_INACTIVE = os.getenv("SIGNAGE_SLEEP_WHEN_INACTIVE", "true").lower() in ("true", "1", "yes")
 
 def _parse_time(s):
     h, m = s.split(":")
@@ -70,6 +71,7 @@ print(f"  API_BASE_URL: {API_BASE_URL}")
 print(f"  SCREEN_ID: {SCREEN_ID}")
 print(f"  API_KEY: {API_KEY[:10]}...")  # Only show first 10 chars
 print(f"  Active hours: {ACTIVE_START} - {ACTIVE_END}")
+print(f"  Sleep when inactive: {SLEEP_WHEN_INACTIVE}")
 print(f"  Active intervals:   poll={POLL_INTERVAL}s, heartbeat={HEARTBEAT_INTERVAL}s")
 print(f"  Inactive intervals: poll={INACTIVE_POLL_INTERVAL}s, heartbeat={INACTIVE_HEARTBEAT_INTERVAL}s")
 
@@ -267,7 +269,14 @@ class SignageClient:
     def get_asset_info(self, asset_id):
         """Get asset metadata"""
         return self.make_api_request(f"assets/{asset_id}")
-        
+
+    def _get_cached_filename(self, asset_id):
+        """Look up filename from local cache directory without making an API call"""
+        for path in CACHE_DIR.iterdir():
+            if path.name.startswith(asset_id):
+                return path.name
+        return None
+
     def download_asset(self, asset_id, url, filename):
         """Download and cache asset file"""
         cache_path = CACHE_DIR / filename
@@ -475,7 +484,8 @@ class SignageClient:
     def heartbeat_loop(self):
         """Background thread for sending heartbeats"""
         while True:
-            self.send_heartbeat()
+            if not SLEEP_WHEN_INACTIVE or is_active_hours():
+                self.send_heartbeat()
             time.sleep(get_heartbeat_interval())
             
     def run(self):
@@ -500,13 +510,17 @@ class SignageClient:
             try:
                 active = is_active_hours()
                 if active != self._last_active_state:
-                    mode = "active" if active else "inactive"
+                    mode = "active" if active else ("sleeping" if SLEEP_WHEN_INACTIVE else "inactive")
                     interval = get_poll_interval()
                     print(f"Switching to {mode} mode (poll every {interval}s)")
                     self._last_active_state = active
 
+                # When sleeping, skip all API calls but keep displaying cached content
+                skip_api = SLEEP_WHEN_INACTIVE and not active
+
                 # Check for playlist updates
-                self.update_playlist()
+                if not skip_api:
+                    self.update_playlist()
 
                 # Check for content switching more frequently (every 1 second)
                 for _ in range(get_poll_interval()):
@@ -514,19 +528,30 @@ class SignageClient:
                     current_item = self.get_current_item()
                     if current_item:
                         current_asset_id = current_item['assetId']
-                        
+
                         # Only update display if content actually changed
                         if current_asset_id != last_displayed_asset:
-                            # Get asset info to find filename
-                            asset_info = self.get_asset_info(current_asset_id)
-                            if asset_info:
-                                self.display_content(
-                                    current_asset_id,
-                                    asset_info['filename'],
-                                    current_item['type']
-                                )
-                                last_displayed_asset = current_asset_id
-                    
+                            if skip_api:
+                                # Use cached playlist data — no API call needed
+                                cached_filename = self._get_cached_filename(current_asset_id)
+                                if cached_filename:
+                                    self.display_content(
+                                        current_asset_id,
+                                        cached_filename,
+                                        current_item['type']
+                                    )
+                                    last_displayed_asset = current_asset_id
+                            else:
+                                # Get asset info to find filename
+                                asset_info = self.get_asset_info(current_asset_id)
+                                if asset_info:
+                                    self.display_content(
+                                        current_asset_id,
+                                        asset_info['filename'],
+                                        current_item['type']
+                                    )
+                                    last_displayed_asset = current_asset_id
+
                     time.sleep(1)  # Check every second for content switches
                 
             except KeyboardInterrupt:
