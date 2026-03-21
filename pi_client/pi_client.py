@@ -46,6 +46,9 @@ INACTIVE_HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL
 ACTIVE_START = os.getenv("SIGNAGE_ACTIVE_START", "07:00")
 ACTIVE_END = os.getenv("SIGNAGE_ACTIVE_END", "22:00")
 SLEEP_WHEN_INACTIVE = os.getenv("SIGNAGE_SLEEP_WHEN_INACTIVE", "true").lower() in ("true", "1", "yes")
+AUTO_UPDATE = os.getenv("SIGNAGE_AUTO_UPDATE", "true").lower() in ("true", "1", "yes")
+AUTO_UPDATE_BRANCH = "main"
+CLIENT_DIR = Path(__file__).parent.resolve()
 
 def _parse_time(s):
     h, m = s.split(":")
@@ -74,6 +77,7 @@ print(f"  SCREEN_ID: {SCREEN_ID}")
 print(f"  API_KEY: {API_KEY[:10]}...")  # Only show first 10 chars
 print(f"  Active hours: {ACTIVE_START} - {ACTIVE_END}")
 print(f"  Sleep when inactive: {SLEEP_WHEN_INACTIVE}")
+print(f"  Auto update: {AUTO_UPDATE}")
 print(f"  Active intervals:   poll={POLL_INTERVAL}s, heartbeat={HEARTBEAT_INTERVAL}s")
 print(f"  Inactive intervals: poll={INACTIVE_POLL_INTERVAL}s, heartbeat={INACTIVE_HEARTBEAT_INTERVAL}s")
 
@@ -490,6 +494,56 @@ class SignageClient:
                 self.send_heartbeat()
             time.sleep(get_heartbeat_interval())
 
+    def check_for_updates(self):
+        """Git pull on main branch; return True if files changed."""
+        try:
+            branch = subprocess.run(
+                ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+                cwd=CLIENT_DIR, capture_output=True, text=True, timeout=10,
+            )
+            current_branch = branch.stdout.strip()
+            if current_branch != AUTO_UPDATE_BRANCH:
+                print(f"Auto-update skipped: on branch '{current_branch}', not '{AUTO_UPDATE_BRANCH}'")
+                return False
+
+            result = subprocess.run(
+                ["git", "pull", "--ff-only"],
+                cwd=CLIENT_DIR, capture_output=True, text=True, timeout=60,
+            )
+            print(f"Git pull: {result.stdout.strip()}")
+            if result.returncode != 0:
+                print(f"Git pull failed: {result.stderr.strip()}")
+                return False
+
+            return "Already up to date" not in result.stdout
+        except Exception as e:
+            print(f"Auto-update error: {e}")
+            return False
+
+    def restart_service(self):
+        """Restart the signage systemd service to pick up new code."""
+        print("New code pulled — restarting signage service...")
+        try:
+            subprocess.run(
+                ["sudo", "systemctl", "restart", "signage.service"],
+                timeout=30,
+            )
+        except Exception as e:
+            print(f"Service restart failed: {e}")
+
+    def auto_update_loop(self):
+        """Background thread: check for updates once per night during inactive hours."""
+        updated_today = None
+        while True:
+            today = datetime.now().date()
+            if not is_active_hours() and updated_today != today:
+                print("Running nightly auto-update check...")
+                if self.check_for_updates():
+                    self.restart_service()
+                    # systemd will restart us, but mark today in case it doesn't
+                updated_today = today
+            time.sleep(300)  # re-check every 5 minutes
+
     def run(self):
         """Main client loop"""
         print(f"Starting Signage Client for {SCREEN_ID}")
@@ -501,6 +555,11 @@ class SignageClient:
         # Start heartbeat thread
         heartbeat_thread = threading.Thread(target=self.heartbeat_loop, daemon=True)
         heartbeat_thread.start()
+
+        # Start auto-update thread
+        if AUTO_UPDATE:
+            update_thread = threading.Thread(target=self.auto_update_loop, daemon=True)
+            update_thread.start()
 
         # Initial playlist fetch
         self.update_playlist()
