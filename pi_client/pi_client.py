@@ -4,16 +4,18 @@ Signage Manager Pi Client
 Polls the signage manager API and displays content in fullscreen
 """
 
-import os
-import time
 import json
-import requests
+import os
 import subprocess
 import threading
-from datetime import datetime, time as dt_time
-from pathlib import Path
+import time
+from datetime import datetime
+from datetime import time as dt_time
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-import socketserver
+from pathlib import Path
+
+import requests
+
 
 # Load environment variables from .env file if it exists
 def load_env_file():
@@ -43,6 +45,7 @@ INACTIVE_POLL_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_POLL_INTERVAL", "300"))
 INACTIVE_HEARTBEAT_INTERVAL = int(os.getenv("SIGNAGE_INACTIVE_HEARTBEAT_INTERVAL", "300"))  # seconds
 ACTIVE_START = os.getenv("SIGNAGE_ACTIVE_START", "07:00")
 ACTIVE_END = os.getenv("SIGNAGE_ACTIVE_END", "22:00")
+SLEEP_WHEN_INACTIVE = os.getenv("SIGNAGE_SLEEP_WHEN_INACTIVE", "true").lower() in ("true", "1", "yes")
 
 def _parse_time(s):
     h, m = s.split(":")
@@ -65,11 +68,12 @@ def get_poll_interval():
 def get_heartbeat_interval():
     return HEARTBEAT_INTERVAL if is_active_hours() else INACTIVE_HEARTBEAT_INTERVAL
 
-print(f"Configuration loaded:")
+print("Configuration loaded:")
 print(f"  API_BASE_URL: {API_BASE_URL}")
 print(f"  SCREEN_ID: {SCREEN_ID}")
 print(f"  API_KEY: {API_KEY[:10]}...")  # Only show first 10 chars
 print(f"  Active hours: {ACTIVE_START} - {ACTIVE_END}")
+print(f"  Sleep when inactive: {SLEEP_WHEN_INACTIVE}")
 print(f"  Active intervals:   poll={POLL_INTERVAL}s, heartbeat={HEARTBEAT_INTERVAL}s")
 print(f"  Inactive intervals: poll={INACTIVE_POLL_INTERVAL}s, heartbeat={INACTIVE_HEARTBEAT_INTERVAL}s")
 
@@ -85,7 +89,7 @@ class SignageClient:
         self.orientation = self.fetch_orientation()
         self.setup_cache_dir()
         self.start_http_server()
-        
+
     def fetch_orientation(self, max_retries=30, retry_delay=5):
         """Fetch screen orientation from server config, retrying until network is ready"""
         headers = {"x-api-key": API_KEY}
@@ -109,15 +113,15 @@ class SignageClient:
         """Create cache directory if it doesn't exist"""
         CACHE_DIR.mkdir(exist_ok=True)
         print(f"Cache directory: {CACHE_DIR}")
-        
+
     def start_http_server(self):
         """Start local HTTP server to serve cached files"""
         os.chdir(CACHE_DIR)
-        
+
         class CustomHandler(SimpleHTTPRequestHandler):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, directory=str(CACHE_DIR), **kwargs)
-                
+
             def do_POST(self):
                 if self.path == '/viewport':
                     length = int(self.headers.get('Content-Length', 0))
@@ -143,13 +147,13 @@ class SignageClient:
                     self.wfile.write(response_data.encode())
                 else:
                     super().do_GET()
-                    
+
             def log_message(self, format, *args):
                 # Suppress default HTTP server logs except for content-info requests
                 if 'content-info.json' in format % args:
                     print(f"HTTP: {format % args}")
                 pass
-        
+
         HTTPServer.allow_reuse_address = True
         self.http_server = HTTPServer(('localhost', 8000), CustomHandler)
         self.http_server.content_info = self.current_content_info
@@ -163,7 +167,7 @@ class SignageClient:
         self._write_display_html()
         self.launch_browser("http://localhost:8000/display.html")
         self.browser_launched = True
-        
+
     def _write_display_html(self):
         """Write the display HTML file to the cache directory"""
         is_portrait = self.orientation == 'portrait'
@@ -229,14 +233,14 @@ class SignageClient:
             url = f"{API_BASE_URL}/api/{endpoint}"
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
-            
+
             # Debug: print response content
             print(f"API Response for {endpoint}: {response.text[:200]}...")
-            
+
             if not response.text.strip():
                 print(f"Empty response from {endpoint}")
                 return None
-                
+
             return response.json()
         except requests.RequestException as e:
             print(f"API request failed: {e}")
@@ -245,7 +249,7 @@ class SignageClient:
             print(f"JSON decode error for {endpoint}: {e}")
             print(f"Response content: {response.text}")
             return None
-            
+
     def post_api_request(self, endpoint, data):
         """Make authenticated POST API request"""
         headers = {"x-api-key": API_KEY, "Content-Type": "application/json"}
@@ -259,77 +263,84 @@ class SignageClient:
         except requests.RequestException as e:
             print(f"API POST failed: {e}")
             return None
-            
+
     def get_playlist(self):
         """Fetch current playlist from API"""
         return self.make_api_request(f"screens/{SCREEN_ID}/playlist")
-        
+
     def get_asset_info(self, asset_id):
         """Get asset metadata"""
         return self.make_api_request(f"assets/{asset_id}")
-        
+
+    def _get_cached_filename(self, asset_id):
+        """Look up filename from local cache directory without making an API call"""
+        for path in CACHE_DIR.iterdir():
+            if path.name.startswith(asset_id):
+                return path.name
+        return None
+
     def download_asset(self, asset_id, url, filename):
         """Download and cache asset file"""
         cache_path = CACHE_DIR / filename
-        
+
         # Skip if already cached
         if cache_path.exists():
             print(f"Asset {asset_id} already cached")
             return str(cache_path)
-            
+
         print(f"Downloading {asset_id}...")
         try:
             response = requests.get(url, timeout=30)
             response.raise_for_status()
-            
+
             with open(cache_path, 'wb') as f:
                 f.write(response.content)
-                
+
             print(f"Downloaded {filename} to cache")
             return str(cache_path)
         except requests.RequestException as e:
             print(f"Download failed for {asset_id}: {e}")
             return None
-            
+
     def update_playlist(self):
         """Check for playlist updates and download new assets"""
         playlist_data = self.get_playlist()
         if not playlist_data:
             return False
-            
+
         new_playlist = playlist_data.get('items', [])
-        
+
         # Convert to JSON strings for comparison to avoid dict comparison issues
         new_playlist_str = json.dumps(new_playlist, sort_keys=True)
         current_playlist_str = json.dumps(self.current_playlist, sort_keys=True)
-        
+
         # Check if playlist changed
         if new_playlist_str != current_playlist_str:
             print("Playlist updated!")
             self.current_playlist = new_playlist
             self.current_item_index = 0
             self.item_start_time = time.time()
-            
+
             # Download all assets
             for item in self.current_playlist:
                 asset_info = self.get_asset_info(item['assetId'])
                 if asset_info and 'url' in asset_info:
                     self.download_asset(
-                        item['assetId'], 
-                        asset_info['url'], 
+                        item['assetId'],
+                        asset_info['url'],
                         asset_info['filename']
                     )
             return True
         return False
-        
+
     def get_current_item(self):
         """Get the current playlist item that should be displayed"""
         if not self.current_playlist:
             return None
-            
+
         current_time = time.time()
         current_item = self.current_playlist[self.current_item_index]
-        
+
         # Check if it's time to move to next item
         if current_time - self.item_start_time >= current_item['duration']:
             old_index = self.current_item_index
@@ -337,17 +348,17 @@ class SignageClient:
             self.item_start_time = current_time
             current_item = self.current_playlist[self.current_item_index]
             print(f"Switching from item {old_index} to {self.current_item_index}: {current_item['assetId']}")
-            
+
         return current_item
-        
+
     def display_content(self, asset_id, filename, content_type):
         """Display content in fullscreen browser"""
         cache_path = CACHE_DIR / filename
-        
+
         if not cache_path.exists():
             print(f"Cached file not found: {filename}")
             return
-            
+
         # Update content info for HTTP server
         self.current_content_info = {
             "assetId": asset_id,
@@ -356,9 +367,9 @@ class SignageClient:
             "path": f"http://localhost:8000/{filename}"
         }
         self.http_server.content_info = self.current_content_info
-            
+
         print(f"Content updated: {filename} (Asset: {asset_id})")
-        
+
     def _is_display_ready(self):
         """Check if the X display is available"""
         try:
@@ -393,7 +404,7 @@ class SignageClient:
             subprocess.run(['pcmanfm', '--desktop-off'], check=False)
             subprocess.run(['lxpanel', '--profile', 'LXDE-pi', '--command', 'exit'], check=False)
             subprocess.run(['unclutter', '-idle', '0.5', '-root'], check=False)
-        except:
+        except Exception:
             pass
 
         browsers_to_try = [
@@ -441,43 +452,44 @@ class SignageClient:
         print("Pi: sudo apt install chromium-browser")
         print("Mac: Install Google Chrome")
         print(f"Content ready at: {url}")
-            
+
     def send_heartbeat(self):
         """Send status update to server"""
         try:
             # Get system info
             uptime = int(time.time() - self.start_time)
-            
+
             # Try to get CPU temperature (Pi specific)
             temp = None
             try:
                 with open('/sys/class/thermal/thermal_zone0/temp', 'r') as f:
                     temp = int(f.read()) / 1000.0
-            except:
+            except OSError:
                 pass
-                
+
             current_item = self.get_current_item()
             current_asset = current_item['assetId'] if current_item else None
-            
+
             heartbeat_data = {
                 'status': 'online',
                 'currentAsset': current_asset,
                 'uptime': uptime,
                 'temperature': temp
             }
-            
+
             result = self.post_api_request(f"screens/{SCREEN_ID}/heartbeat", heartbeat_data)
             if result:
                 print(f"Heartbeat sent - Asset: {current_asset}, Uptime: {uptime}s")
         except Exception as e:
             print(f"Heartbeat failed: {e}")
-            
+
     def heartbeat_loop(self):
         """Background thread for sending heartbeats"""
         while True:
-            self.send_heartbeat()
+            if not SLEEP_WHEN_INACTIVE or is_active_hours():
+                self.send_heartbeat()
             time.sleep(get_heartbeat_interval())
-            
+
     def run(self):
         """Main client loop"""
         print(f"Starting Signage Client for {SCREEN_ID}")
@@ -500,13 +512,17 @@ class SignageClient:
             try:
                 active = is_active_hours()
                 if active != self._last_active_state:
-                    mode = "active" if active else "inactive"
+                    mode = "active" if active else ("sleeping" if SLEEP_WHEN_INACTIVE else "inactive")
                     interval = get_poll_interval()
                     print(f"Switching to {mode} mode (poll every {interval}s)")
                     self._last_active_state = active
 
+                # When sleeping, skip all API calls but keep displaying cached content
+                skip_api = SLEEP_WHEN_INACTIVE and not active
+
                 # Check for playlist updates
-                self.update_playlist()
+                if not skip_api:
+                    self.update_playlist()
 
                 # Check for content switching more frequently (every 1 second)
                 for _ in range(get_poll_interval()):
@@ -514,21 +530,32 @@ class SignageClient:
                     current_item = self.get_current_item()
                     if current_item:
                         current_asset_id = current_item['assetId']
-                        
+
                         # Only update display if content actually changed
                         if current_asset_id != last_displayed_asset:
-                            # Get asset info to find filename
-                            asset_info = self.get_asset_info(current_asset_id)
-                            if asset_info:
-                                self.display_content(
-                                    current_asset_id,
-                                    asset_info['filename'],
-                                    current_item['type']
-                                )
-                                last_displayed_asset = current_asset_id
-                    
+                            if skip_api:
+                                # Use cached playlist data — no API call needed
+                                cached_filename = self._get_cached_filename(current_asset_id)
+                                if cached_filename:
+                                    self.display_content(
+                                        current_asset_id,
+                                        cached_filename,
+                                        current_item['type']
+                                    )
+                                    last_displayed_asset = current_asset_id
+                            else:
+                                # Get asset info to find filename
+                                asset_info = self.get_asset_info(current_asset_id)
+                                if asset_info:
+                                    self.display_content(
+                                        current_asset_id,
+                                        asset_info['filename'],
+                                        current_item['type']
+                                    )
+                                    last_displayed_asset = current_asset_id
+
                     time.sleep(1)  # Check every second for content switches
-                
+
             except KeyboardInterrupt:
                 print("Shutting down...")
                 if self.browser_process:
