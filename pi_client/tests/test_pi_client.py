@@ -267,6 +267,7 @@ class TestUpdatePlaylist:
         with patch.object(client, "get_playlist", return_value=playlist_response), \
              patch.object(client, "get_asset_info", return_value=asset_response), \
              patch.object(client, "download_asset") as mock_download, \
+             patch.object(client, "_save_playlist_cache"), \
              patch("builtins.print"):
             result = client.update_playlist()
 
@@ -290,7 +291,8 @@ class TestUpdatePlaylist:
         mod = _import_pi_client()
         client = _make_client(mod)
 
-        with patch.object(client, "get_playlist", return_value=None):
+        with patch.object(client, "get_playlist", return_value=None), \
+             patch.object(client, "_load_playlist_cache", return_value=None):
             result = client.update_playlist()
 
         assert result is False
