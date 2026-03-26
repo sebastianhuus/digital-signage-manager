@@ -118,6 +118,29 @@ class SignageClient:
         CACHE_DIR.mkdir(exist_ok=True)
         print(f"Cache directory: {CACHE_DIR}")
 
+    def _save_playlist_cache(self, playlist_data):
+        """Persist playlist JSON to disk so it survives reboots"""
+        cache_path = CACHE_DIR / "playlist.json"
+        try:
+            with open(cache_path, 'w') as f:
+                json.dump(playlist_data, f)
+            print("Playlist cached to disk")
+        except Exception as e:
+            print(f"Failed to cache playlist: {e}")
+
+    def _load_playlist_cache(self):
+        """Load previously cached playlist from disk"""
+        cache_path = CACHE_DIR / "playlist.json"
+        try:
+            if cache_path.exists():
+                with open(cache_path, 'r') as f:
+                    data = json.load(f)
+                print(f"Loaded cached playlist from disk ({len(data.get('items', []))} items)")
+                return data
+        except Exception as e:
+            print(f"Failed to load cached playlist: {e}")
+        return None
+
     def start_http_server(self):
         """Start local HTTP server to serve cached files"""
         os.chdir(CACHE_DIR)
@@ -310,7 +333,11 @@ class SignageClient:
         """Check for playlist updates and download new assets"""
         playlist_data = self.get_playlist()
         if not playlist_data:
-            return False
+            # API failed — fall back to cached playlist if we have no content
+            if not self.current_playlist:
+                playlist_data = self._load_playlist_cache()
+            if not playlist_data:
+                return False
 
         new_playlist = playlist_data.get('items', [])
 
@@ -334,6 +361,9 @@ class SignageClient:
                         asset_info['url'],
                         asset_info['filename']
                     )
+
+            # Persist playlist so it survives reboots without connectivity
+            self._save_playlist_cache(playlist_data)
             return True
         return False
 
@@ -603,7 +633,7 @@ class SignageClient:
                                     )
                                     last_displayed_asset = current_asset_id
                             else:
-                                # Get asset info to find filename
+                                # Get asset info to find filename, fall back to cache
                                 asset_info = self.get_asset_info(current_asset_id)
                                 if asset_info:
                                     self.display_content(
@@ -612,6 +642,16 @@ class SignageClient:
                                         current_item['type']
                                     )
                                     last_displayed_asset = current_asset_id
+                                else:
+                                    # API down — try local cache
+                                    cached_filename = self._get_cached_filename(current_asset_id)
+                                    if cached_filename:
+                                        self.display_content(
+                                            current_asset_id,
+                                            cached_filename,
+                                            current_item['type']
+                                        )
+                                        last_displayed_asset = current_asset_id
 
                     time.sleep(1)  # Check every second for content switches
 

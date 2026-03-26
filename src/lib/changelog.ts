@@ -5,6 +5,14 @@ export interface ChangelogEntry {
 }
 
 export const changelog: ChangelogEntry[] = [
+    {
+    version: '0.9.0',
+    date: '2026-03-26',
+    changes: [
+      'Pi clients now save their most recent Playlist',
+      'Pi clients now load the most recent playlist if it cannot reach the database',
+    ],
+  },
   {
     version: '0.8.0',
     date: '2026-03-06',
