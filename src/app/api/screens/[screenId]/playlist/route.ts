@@ -26,20 +26,28 @@ export async function GET(
       WHERE p.screen_id = $1
       ORDER BY p.position
     `, [screenId])
-    
+
     if (result.rows.length === 0) {
       return NextResponse.json({ error: 'Playlist not found' }, { status: 404 })
     }
-    
+
+    const items = result.rows.map(row => ({
+      assetId: row.asset_id,
+      duration: row.duration,
+      type: row.type
+    }))
+
+    // Generate ETag from playlist content so Pi clients can skip unchanged playlists
+    const etag = `"${Buffer.from(JSON.stringify(items)).toString('base64').slice(0, 16)}"`
+    if (request.headers.get('if-none-match') === etag) {
+      return new NextResponse(null, { status: 304, headers: { ETag: etag } })
+    }
+
     return NextResponse.json({
       screenId,
       lastUpdated: new Date().toISOString(),
-      items: result.rows.map(row => ({
-        assetId: row.asset_id,
-        duration: row.duration,
-        type: row.type
-      }))
-    })
+      items
+    }, { headers: { ETag: etag } })
   } catch (error) {
     console.error('Database error:', error)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })

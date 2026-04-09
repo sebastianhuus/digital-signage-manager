@@ -90,6 +90,7 @@ class SignageClient:
         self.browser_launched = False  # Simple flag instead of process checking
         self.http_server = None
         self.current_content_info = {}
+        self.playlist_etag = None  # ETag for playlist caching
         self.orientation = self.fetch_orientation()
         self.setup_cache_dir()
         self.start_http_server()
@@ -251,9 +252,11 @@ class SignageClient:
         with open(html_path, 'w') as f:
             f.write(html_content)
 
-    def make_api_request(self, endpoint):
+    def make_api_request(self, endpoint, extra_headers=None):
         """Make authenticated API request"""
         headers = {"x-api-key": API_KEY}
+        if extra_headers:
+            headers.update(extra_headers)
         try:
             # Remove leading slash from endpoint to avoid double slashes
             endpoint = endpoint.lstrip('/')
@@ -292,8 +295,23 @@ class SignageClient:
             return None
 
     def get_playlist(self):
-        """Fetch current playlist from API"""
-        return self.make_api_request(f"screens/{SCREEN_ID}/playlist")
+        """Fetch current playlist from API, using ETag to skip unchanged responses"""
+        headers = {"x-api-key": API_KEY}
+        if self.playlist_etag:
+            headers["If-None-Match"] = self.playlist_etag
+        try:
+            url = f"{API_BASE_URL}/api/screens/{SCREEN_ID}/playlist"
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code == 304:
+                return None  # Playlist unchanged, caller will use existing
+            response.raise_for_status()
+            etag = response.headers.get("ETag")
+            if etag:
+                self.playlist_etag = etag
+            return response.json()
+        except requests.RequestException as e:
+            print(f"Playlist fetch failed: {e}")
+            return None
 
     def get_asset_info(self, asset_id):
         """Get asset metadata"""
@@ -333,6 +351,9 @@ class SignageClient:
         """Check for playlist updates and download new assets"""
         playlist_data = self.get_playlist()
         if not playlist_data:
+            if self.playlist_etag:
+                # Got 304 Not Modified — server confirms playlist unchanged
+                return False
             # API failed — fall back to cached playlist if we have no content
             if not self.current_playlist:
                 playlist_data = self._load_playlist_cache()
