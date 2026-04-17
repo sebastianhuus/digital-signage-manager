@@ -5,7 +5,14 @@ export interface ChangelogEntry {
 }
 
 export const changelog: ChangelogEntry[] = [
-    {
+  {
+    version: '0.10.0',
+    date: '2026-04-09',
+    changes: [
+      'Reduced database load — Pi clients no longer trigger unnecessary queries when the playlist has not changed.',
+    ],
+  },
+  {
     version: '0.9.0',
     date: '2026-03-26',
     changes: [
